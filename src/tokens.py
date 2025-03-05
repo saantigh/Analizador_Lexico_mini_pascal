@@ -57,7 +57,7 @@ tokens = (
    
     # Symbols
     'ASIGNATION'
-    'PLUS',
+    'PLUS', 
     'MINUS',
     'TIMES',
     'DIVIDE',
@@ -74,7 +74,6 @@ tokens = (
     'LBRACKET',
     'RBRACKET',
     'COLON',
-    'DOBLECOLON'
     'DOT',
     'DOBLEDOT'
 
