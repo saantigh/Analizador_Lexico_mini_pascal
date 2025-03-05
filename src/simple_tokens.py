@@ -18,7 +18,6 @@ t_RPAREN        = r'\)'
 t_LBRACKET      = r'\['
 t_RBRACKET      = r'\]'
 t_COLON         = r':'
-t_DOBLECOLON    = r'::'
 t_DOT           = r'\.'
 t_DOBLEDOT      = r'\.\.'
 
