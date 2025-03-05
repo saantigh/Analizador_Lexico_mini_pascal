@@ -20,6 +20,9 @@ t_RBRACKET = r"\]"
 t_COLON = r":"
 t_DOT = r"\."
 t_DOBLEDOT = r"\.\."
-
+t_RKEY = r"\{"
+t_LKEY = r"\}"
+t_STRING = r"\'[^\']*\'"
+t_COMMENT = r"\{[^\}]*\}"
 # Regla para ignorar espacios y tabulaciones
 t_ignore = " \t"

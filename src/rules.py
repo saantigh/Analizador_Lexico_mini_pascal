@@ -2,267 +2,267 @@
 
 
 def t_ABSOLUTE(t):
-    r"ABSOLUTE|absolute"
+    r"absolute"
     return t
 
 
 def t_AND(t):
-    r"AND|and"
+    r"and"
     return t
 
 
 def t_ARRAY(t):
-    r"ARRAY|array"
+    r"array"
     return t
 
 
 def t_ASM(t):
-    r"ASM|asm"
+    r"asm"
     return t
 
 
 def t_BEGIN(t):
-    r"BEGIN|begin"
+    r"begin"
     return t
 
 
 def t_CASE(t):
-    r"CASE|case"
+    r"case"
     return t
 
 
 def t_CONST(t):
-    r"CONST|const"
+    r"const"
     return t
 
 
 def t_CONSTRUCTOR(t):
-    r"CONSTRUCTOR|constructor"
+    r"constructor"
     return t
 
 
 def t_DESTRUCTOR(t):
-    r"DESTRUCTOR|destructor"
+    r"destructor"
     return t
 
 
 def t_EXTERNAL(t):
-    r"EXTERNAL|external"
+    r"external"
     return t
 
 
 def t_DIV(t):
-    r"DIV|div"
+    r"div"
     return t
 
 
 def t_DO(t):
-    r"DO|do"
+    r"do"
     return t
 
 
 def t_DOWNTO(t):
-    r"DOWNTO|downto"
+    r"downto"
     return t
 
 
 def t_ELSE(t):
-    r"ELSE|else"
+    r"else"
     return t
 
 
 def t_END(t):
-    r"END|end"
+    r"end"
     return t
 
 
 def t_FILE(t):
-    r"FILE|file"
+    r"file"
     return t
 
 
 def t_FOR(t):
-    r"FOR|for"
+    r"for"
     return t
 
 
 def t_FORWARD(t):
-    r"FORWARD|forward"
+    r"forward"
     return t
 
 
 def t_FUNCTION(t):
-    r"FUNCTION|function"
+    r"function"
     return t
 
 
 def t_GOTO(t):
-    r"GOTO|goto"
+    r"goto"
     return t
 
 
 def t_IF(t):
-    r"IF|if"
+    r"if"
     return t
 
 
 def t_IMPLEMENTATION(t):
-    r"IMPLEMENTATION|implementation"
+    r"implementation"
     return t
 
 
 def t_IN(t):
-    r"IN|in"
+    r"in"
     return t
 
 
 def t_INLINE(t):
-    r"INLINE|inline"
+    r"inline"
     return t
 
 
 def t_INTERFACE(t):
-    r"INTERFACE|interface"
+    r"interface"
     return t
 
 
 def t_INTERRUPT(t):
-    r"INTERRUPT|interrupt"
+    r"interrupt"
     return t
 
 
 def t_LABEL(t):
-    r"LABEL|label"
+    r"label"
     return t
 
 
 def t_MOD(t):
-    r"MOD|mod"
+    r"mod"
     return t
 
 
 def t_NIL(t):
-    r"NIL|nil"
+    r"nil"
     return t
 
 
 def t_NOT(t):
-    r"NOT|not"
+    r"not"
     return t
 
 
 def t_OBJECT(t):
-    r"OBJECT|object"
+    r"object"
     return t
 
 
 def t_OF(t):
-    r"OF|of"
+    r"of"
     return t
 
 
 def t_OR(t):
-    r"OR|or"
+    r"or"
     return t
 
 
 def t_PACKED(t):
-    r"PACKED|packed"
+    r"packed"
     return t
 
 
 def t_PRIVATE(t):
-    r"PRIVATE|private"
+    r"private"
     return t
 
 
 def t_PROCEDURE(t):
-    r"PROCEDURE|procedure"
+    r"procedure"
     return t
 
 
 def t_PROGRAM(t):
-    r"PROGRAM|program"
+    r"program"
     return t
 
 
 def t_RECORD(t):
-    r"RECORD|record"
+    r"record"
     return t
 
 
 def t_REPEAT(t):
-    r"REPEAT|repeat"
+    r"repeat"
     return t
 
 
 def t_SET(t):
-    r"SET|set"
+    r"set"
     return t
 
 
 def t_SHL(t):
-    r"SHL|shl"
+    r"shl"
     return t
 
 
 def t_SHR(t):
-    r"SHR|shr"
+    r"shr"
     return t
 
 
 def t_STRING(t):
-    r"STRING|string"
+    r"string"
     return t
 
 
 def t_THEN(t):
-    r"THEN|then"
+    r"then"
     return t
 
 
 def t_TO(t):
-    r"TO|to"
+    r"to"
     return t
 
 
 def t_TYPE(t):
-    r"TYPE|type"
+    r"type"
     return t
 
 
 def t_UNIT(t):
-    r"UNIT|unit"
+    r"unit"
     return t
 
 
 def t_UNTIL(t):
-    r"UNTIL|until"
+    r"until"
     return t
 
 
 def t_USES(t):
-    r"USES|uses"
+    r"uses"
     return t
 
 
 def t_VAR(t):
-    r"VAR|var"
+    r"var"
     return t
 
 
 def t_VIRTUAL(t):
-    r"VIRTUAL|virtual"
+    r"virtual"
     return t
 
 
 def t_WITH(t):
-    r"WITH|with"
+    r"with"
     return t
 
 
 def t_XOR(t):
-    r"XOR|xor"
+    r"xor"
     return t
 
 
@@ -380,6 +380,16 @@ def t_ID(t):
 def t_NUMBER(t):
     r"\d+"
     return t
+
+
+def t_COMMENT(t):
+    r"\{[^\}]*\}"
+    return t
+
+
+def t_newline(t):
+    r"\n+"
+    t.lexer.lineno += len(t.value)
 
 
 def t_error(t):

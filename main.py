@@ -1,6 +1,8 @@
 # Función de prueba para el lexer
-import ply.lex as lex
 import sys
+import re
+
+import ply.lex as lex
 from src.rules import *
 from src.tokens import *
 from src.simple_tokens import *
@@ -15,7 +17,7 @@ def test(data, lexer):
         print(tok)
 
 
-lexer = lex.lex()
+lexer = lex.lex(reflags=re.IGNORECASE)
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -24,6 +26,6 @@ if __name__ == "__main__":
         fin = "test/test.pas"
     f = open(fin, "r")
     data = f.read()
-    print(data)
+    print(data, end="\n\n")
     lexer.input(data)
     test(data, lexer)

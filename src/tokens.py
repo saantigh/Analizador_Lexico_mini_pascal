@@ -72,10 +72,14 @@ tokens = (
     "RPAREN",
     "LBRACKET",
     "RBRACKET",
+    "LKEY",
+    "RKEY",
     "COLON",
     "DOT",
     "DOBLEDOT",
     # Others
     "ID",
     "NUMBER",
+    "STRING",
+    "COMMENT",
 )
