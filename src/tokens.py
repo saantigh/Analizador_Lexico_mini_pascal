@@ -55,7 +55,8 @@ tokens = (
     "WITH",
     "XOR",
     # Symbols
-    "ASIGNATION" "PLUS",
+    "ASIGNATION",
+    "PLUS",
     "MINUS",
     "TIMES",
     "DIVIDE",
@@ -73,7 +74,7 @@ tokens = (
     "RBRACKET",
     "COLON",
     "DOT",
-    "DOBLEDOT"
+    "DOBLEDOT",
     # Others
     "ID",
     "NUMBER",
