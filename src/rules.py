@@ -1,6 +1,5 @@
 # Pascal rules
 
-
 def t_ABSOLUTE(t):
     r"absolute"
     return t
@@ -368,6 +367,9 @@ def t_DOBLEDOT(t):
     r"\.\."
     return t
 
+def t_CARET(t):
+    r"\^"
+    return t
 
 # Other's
 
@@ -379,11 +381,6 @@ def t_ID(t):
 
 def t_NUMBER(t):
     r"\d+"
-    return t
-
-
-def t_COMMENT(t):
-    r"(\{[^\}]*\})|(\(\*.*?\*\))|(//[^\n]*)"
     return t
 
 

@@ -77,6 +77,7 @@ tokens = (
     "COLON",
     "DOT",
     "DOBLEDOT",
+    "CARET",
     # Others
     "ID",
     "NUMBER",

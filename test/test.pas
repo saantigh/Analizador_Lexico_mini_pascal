@@ -1,3 +1,9 @@
+(*Hola soy 
+iavn*)
+
+//Otro commmentario aaa
+
+
 program EjemploCompleto;  { Nombre del programa }
 uses crt;  { Librería para funciones de pantalla }
 
