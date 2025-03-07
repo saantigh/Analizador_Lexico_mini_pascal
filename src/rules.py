@@ -380,7 +380,7 @@ def t_ID(t):
 
 
 def t_NUMBER(t):
-    r"\d+"
+    r'(-)?\d+(\.\d+)?([eE][-+]?\d+(\.\d+)?)?'
     return t
 
 
