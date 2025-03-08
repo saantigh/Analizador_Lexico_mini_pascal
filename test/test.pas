@@ -3,6 +3,10 @@ iavn*)
 
 //Otro commmentario aaa
 
+var nombre@ := 10;
+
+25yand
+
 
 program EjemploCompleto;  { Nombre del programa }
 uses crt;  { Librería para funciones de pantalla }

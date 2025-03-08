@@ -1,5 +1,10 @@
 # Pascal rules
 
+def t_error2(t):
+    r'(-)?\d+(\.\d+)?([eE][-+]?\d+(\.\d+)?)?([a-zA-Z_])([a-zA-Z_0-9]*)'
+    print(f"Illegal character '{t.value}'")
+    t.lexer.skip(1)
+
 def t_ABSOLUTE(t):
     r"absolute"
     return t
@@ -392,3 +397,4 @@ def t_newline(t):
 def t_error(t):
     print(f"Illegal character '{t.value[0]}'")
     t.lexer.skip(1)
+
