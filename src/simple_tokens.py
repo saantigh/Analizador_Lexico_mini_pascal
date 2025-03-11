@@ -1,6 +1,4 @@
-# Regular expression for a simple tokens
-
-t_ASIGNATION = r":="  # Ejemplo: operador de asignación en Pascal
+t_ASIGNATION = r":="
 t_PLUS = r"\+"
 t_MINUS = r"-"
 t_TIMES = r"\*"
@@ -21,9 +19,3 @@ t_COLON = r":"
 t_DOT = r"\."
 t_DOBLEDOT = r"\.\."
 t_CARET = r"\^"
-t_RKEY = r"\{"
-t_LKEY = r"\}"
-t_STRING = r"\'[^\']*\'"
-t_COMMENT = r"\{[^}]*\}|\(\*[\s\S]*?\*\)|//.*"
-# Regla para ignorar espacios y tabulaciones
-t_ignore = " \t"

@@ -22,7 +22,7 @@ type
 var
   a, b, c: TEntero;    { Variables enteras }
   x, y: TNumero;       { Variables reales }
-  i: integer;
+  i: InTeger;
   arreglo: array[1..5] of integer;
   puntero: ^integer;
   nombre_usuario: string;

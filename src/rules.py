@@ -1,9 +1,5 @@
-# Pascal rules
+from src.tokens import reserved
 
-def t_error2(t):
-    r'(-)?\d+(\.\d+)?([eE][-+]?\d+(\.\d+)?)?([a-zA-Z_])([a-zA-Z_0-9]*)'
-    print(f"Illegal character '{t.value}'")
-    t.lexer.skip(1)
 
 def t_ABSOLUTE(t):
     r"absolute"
@@ -115,6 +111,11 @@ def t_IMPLEMENTATION(t):
     return t
 
 
+def t_INTEGER(t):
+    r"integer"
+    return t
+
+
 def t_IN(t):
     r"in"
     return t
@@ -215,11 +216,6 @@ def t_SHR(t):
     return t
 
 
-def t_STRING(t):
-    r"string"
-    return t
-
-
 def t_THEN(t):
     r"then"
     return t
@@ -270,7 +266,34 @@ def t_XOR(t):
     return t
 
 
-# Symbol's rules
+def t_REAL(t):
+    r"real"
+    return t
+
+
+def t_BOOLEAN(t):
+    r"boolean"
+    return t
+
+
+def t_CHAR(t):
+    r"char"
+    return t
+
+
+def t_TRUE(t):
+    r"true"
+    return t
+
+
+def t_FALSE(t):
+    r"false"
+    return t
+
+
+def t_WHILE(t):
+    r"while"
+    return t
 
 
 def t_ASIGNATION(t):
@@ -372,20 +395,31 @@ def t_DOBLEDOT(t):
     r"\.\."
     return t
 
+
 def t_CARET(t):
     r"\^"
     return t
 
-# Other's
-
 
 def t_ID(t):
-    r"[a-zA-Z_][a-zA-Z_0-9]*"
+    r"[A-Za-z_][A-Za-z0-9_]*"
+    t.type = reserved.get(t.value.lower(), "ID")
     return t
 
 
 def t_NUMBER(t):
-    r'(-)?\d+(\.\d+)?([eE][-+]?\d+(\.\d+)?)?'
+    r"-?\d+(\.\d+)?([eE][-+]?\d+)?(?=\W|$)"
+    return t
+
+
+def t_COMMENT(t):
+    r"\{[^}]*\}|\(\*[\s\S]*?\*\)|//.*"
+    t.lexer.lineno += t.value.count("\n")
+    return t
+
+
+def t_STRING(t):
+    r"'([^'\n]|'')*'"
     return t
 
 
@@ -394,7 +428,30 @@ def t_newline(t):
     t.lexer.lineno += len(t.value)
 
 
+# Error handling
+
+
 def t_error(t):
     print(f"Illegal character '{t.value[0]}'")
     t.lexer.skip(1)
 
+
+def t_error_number_id(t):
+    r"\d+[A-Za-z_]+"
+    print(f"Error léxico: Número seguido de letras '{t.value}'")
+    t.lexer.skip(len(t.value))
+
+
+def t_error_invalid_char(t):
+    r"[@$?]+"
+    print(f"Carácter inválido en identificador: '{t.value[0]}'")
+    t.lexer.skip(1)
+
+
+def t_STRING_UNCLOSED(t):
+    r"'([^'\n]|'')*"
+    print("Error léxico: Cadena no cerrada")
+    t.lexer.skip(1)
+
+
+t_ignore = " \t"
