@@ -439,19 +439,17 @@ def t_error(t):
 def t_error_number_id(t):
     r"\d+[A-Za-z_]+"
     print(f"Error léxico: Número seguido de letras '{t.value}'")
-    t.lexer.skip(len(t.value))
+
 
 
 def t_error_invalid_char(t):
     r"[@$?]+"
     print(f"Carácter inválido en identificador: '{t.value[0]}'")
-    t.lexer.skip(1)
 
 
 def t_STRING_UNCLOSED(t):
     r"'([^'\n]|'')*"
     print("Error léxico: Cadena no cerrada")
-    t.lexer.skip(1)
 
 
 t_ignore = " \t"

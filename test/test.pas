@@ -3,11 +3,9 @@ iavn*)
 
 //Otro commmentario aaa
 
-var nombre@ := 10;
+var nombre@a := 10;
 
-25yand
-
-
+256yanda;;;;;;
 program EjemploCompleto;  { Nombre del programa }
 uses crt;  { Librería para funciones de pantalla }
 
@@ -85,3 +83,5 @@ begin
   writeln('Presione una tecla para salir...');
   readkey;  { Espera una tecla }
 end.
+
+'a
