@@ -1,9 +1,9 @@
 (*Hola soy 
-iavn*)
+iavn
 
 //Otro commmentario aaa
 
-var nombre@a := 10;
+var nombre@; := 10;
 
 256yanda;;;;;;
 program EjemploCompleto;  { Nombre del programa }
@@ -84,4 +84,30 @@ begin
   readkey;  { Espera una tecla }
 end.
 
-'a
+'a*)
+
+program SamplePascalTest;
+{ Este programa prueba el analizador léxico de Pascal }
+uses crt;
+
+var
+  x, y, i: integer;
+  mensaje: string;
+
+begin
+  clrscr; { Limpia la pantalla }
+  x := 10;
+  y := 20;
+  mensaje := 'La suma es:';
+  { Realizamos la suma }
+  x := x + y;
+  writeln(mensaje, x);
+  
+  (* Bucle para imprimir números *)
+  for i := 1 to 5 do
+  begin
+    writeln('Número ', i);
+  end;
+  
+  readln;
+end.
