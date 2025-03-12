@@ -415,7 +415,7 @@ def t_NUMBER(t):
 def t_COMMENT(t):
     r"\{[^}]*\}|\(\*[\s\S]*?\*\)|//.*"
     t.lexer.lineno += t.value.count("\n")
-    return t
+    pass
 
 
 def t_STRING(t):

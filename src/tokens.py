@@ -86,5 +86,4 @@ tokens = [
     "DOT",
     "DOBLEDOT",
     "CARET",
-    "COMMENT",
 ] + list(reserved.values())
