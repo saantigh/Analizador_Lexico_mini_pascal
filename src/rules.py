@@ -422,6 +422,14 @@ def t_ID(t):
     t.type = reserved.get(t.value.lower(), "ID")
     return t
 
+def t_NATURALNUMBER(t):
+    r"\d+"
+    return t
+
+def t_INTEGERNUMBER(t):
+    r"-?\d+"
+    return t
+
 
 def t_NUMBER(t):
     r"-?\d+(\.\d+)?([eE][-+]?\d+)?(?=\W|$)"
