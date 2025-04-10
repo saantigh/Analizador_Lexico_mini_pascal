@@ -39,11 +39,16 @@ def p_type_declaration(p):
 	                    | ID EQUAL LPAREN ID id_list RPAREN SEMICOLON 
 						| ID EQUAL INTEGERNUMBER DOBLEDOT INTEGERNUMBER SEMICOLON
 						| ID EQUAL CHAR DOBLEDOT CHAR SEMICOLON
-						| SEMICOLON
-						| SEMICOLON
+						| ID EQUAL RECORD record_list SEMICOLON END SEMICOLON
+						| ID EQUAL ARRAY SEMICOLON
 						| SEMICOLON'''
 	pass
 
+def p_record_list(p):
+	'''record_list : record_list record_declaration | record_declaration'''
+	
+def p_record_declaration(p):
+	'ID COLON data_type_list'
 
 
 def p_var(p):
