@@ -5,74 +5,72 @@ def t_ABSOLUTE(t):
     r"absolute"
     return t
 
-
 def t_AND(t):
     r"and"
     return t
-
 
 def t_ARRAY(t):
     r"array"
     return t
 
-
 def t_ASM(t):
     r"asm"
     return t
-
 
 def t_BEGIN(t):
     r"begin"
     return t
 
+def t_BYTE(t):
+    r"byte"
+    return t
 
 def t_CASE(t):
     r"case"
     return t
 
-
 def t_CONST(t):
     r"const"
     return t
-
 
 def t_CONSTRUCTOR(t):
     r"constructor"
     return t
 
-
 def t_DESTRUCTOR(t):
     r"destructor"
     return t
-
 
 def t_EXTERNAL(t):
     r"external"
     return t
 
-
 def t_DIV(t):
     r"div"
     return t
-
 
 def t_DO(t):
     r"do"
     return t
 
+def t_DOUBLE(t):
+    r"double"
+    return t
 
 def t_DOWNTO(t):
     r"downto"
     return t
 
-
 def t_ELSE(t):
     r"else"
     return t
 
-
 def t_END(t):
     r"end"
+    return t
+
+def t_EXTENDED(t):
+    r"extended"
     return t
 
 
@@ -138,6 +136,10 @@ def t_INTERRUPT(t):
 
 def t_LABEL(t):
     r"label"
+    return t
+
+def t_LONGINT(t):
+    r"longint"
     return t
 
 
@@ -210,11 +212,21 @@ def t_SHL(t):
     r"shl"
     return t
 
+def t_SHORT(t):
+    r"short"
+    return t
+
+def t_SHORTINT(t):
+    r"shortint"
+    return t
 
 def t_SHR(t):
     r"shr"
     return t
 
+def t_SINGLE(t):
+    r"single"
+    return t
 
 def t_THEN(t):
     r"then"
@@ -258,6 +270,10 @@ def t_VIRTUAL(t):
 
 def t_WITH(t):
     r"with"
+    return t
+
+def t_WORD(t):
+    r"word"
     return t
 
 
