@@ -89,8 +89,20 @@ def p_var_declaration(p):
 
 
 
-#TODOS LOS TIPOS DE DATOS QUE SE USAN 
+# definción de cómo se usa begin
 
+def p_begin(p):
+	'begin : BEGIN sentences_list END DOT' 
+	pass
+
+
+
+
+
+
+
+
+#TODOS LOS TIPOS DE DATOS QUE SE USAN 
 
 
 def p_data_type_file(p):
