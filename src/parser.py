@@ -39,66 +39,82 @@ def p_const_declaration(p):
 #Definición de cómo se usa type
 
 def p_type(p):
-	'type : TYPE  type_list' 
-	pass
+    'type : TYPE type_list'
+    pass
 
 def p_type_list(p):
-	'''type_list : type_list type_declaration | type_declaration'''
-	pass
+    '''type_list : type_list type_declaration
+                 | type_declaration'''
+    pass
 
 def p_type_declaration(p):
-	'''type_declaration : ID EQUAL data_type_list SEMICOLON 
-	                    | ID EQUAL LPAREN ID id_list RPAREN SEMICOLON 
-						| ID EQUAL INTEGERNUMBER DOBLEDOT INTEGERNUMBER SEMICOLON
-						| ID EQUAL CHAR DOBLEDOT CHAR SEMICOLON
-						| ID EQUAL RECORD record_list SEMICOLON END SEMICOLON
-						| ID EQUAL ARRAY LBRACKET INTEGERNUMBER DOBLEDOT INTEGERNUMER RBRACKET OF data_type_list SEMICOLON
-						| ID EQUAL SET OF (data_type_list2 | INTEGERNUMBER DOBLEDOT INTEGERNUMBER | CHAR DOBLEDOT CHAR) SEMICOLON
-						| ID EQUAL CARET ID SEMICOLON
-	                    | ID COLON file_type SEMICOLON;
-						| ID '''
-	pass
+    'type_declaration : ID EQUAL type_definition SEMICOLON'
+    pass
+
+def p_type_definition(p):
+    '''type_definition : data_type_list
+                       | LPAREN id_list RPAREN
+                       | INTEGERNUMBER DOBLEDOT INTEGERNUMBER
+                       | CHAR DOBLEDOT CHAR
+                       | RECORD record_list END
+                       | ARRAY LBRACKET INTEGERNUMBER DOBLEDOT INTEGERNUMBER RBRACKET OF data_type_list
+                       | SET OF set_range
+                       | CARET ID'''
+    pass
+
+def p_set_range(p):
+    '''set_range : data_type_set
+                 | INTEGERNUMBER DOBLEDOT INTEGERNUMBER
+                 | CHAR DOBLEDOT CHAR'''
+    pass
 
 def p_record_list(p):
-	'''record_list : record_list record_declaration | record_declaration'''
-	
+    '''record_list : record_list record_declaration
+                   | record_declaration'''
+    pass
+
 def p_record_declaration(p):
-	'ID COLON data_type_list'
+    'record_declaration : id_list COLON data_type_list SEMICOLON'
+    pass
 
 
 
 # Definición de cómo se usa var
 
 def p_var(p):
-	'var : VAR var_list ' 
-	pass
+    'var : VAR var_list'
+    pass
 
 def p_var_list(p):
-	'''var_list : var_list var_declaration | var_declaration''' 
-	pass
+    '''var_list : var_list var_declaration
+                | var_declaration'''
+    pass
 
 def p_var_declaration(p):
-	'''var_declaration : ID COLON data_type_list SEMICOLON
-                       | SEMICOLON
-					   | SEMICOLON
-					   | SEMICOLON 
-					   | SEMICOLON
-					   | SEMICOLON
-	                   | SEMICOLON''' 
-	pass
+    'var_declaration : id_list COLON data_type_list SEMICOLON'
+    pass
+
+def p_id_list(p):
+    '''id_list : ID
+               | id_list COMMA ID'''
+    pass
 
 
-
-# definción de cómo se usa begin
+# definción de cómo se usa begin FALTA ESTO 
 
 def p_begin(p):
 	'begin : BEGIN sentences_list END DOT' 
 	pass
 
 
+# definición de cómo se usa for
 
+def p_for(p):
+    'for: FOR ID ASIGNATION INTEGERNUMBER TO INTEGERNUMBER DO'
 
+# definición de cómo se usa while
 
+# definición de cómo se usa if 
 
 
 
