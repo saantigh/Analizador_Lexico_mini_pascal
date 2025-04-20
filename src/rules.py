@@ -1,73 +1,259 @@
+# rules.py
 from src.tokens import reserved
+
+
+def t_COMMENT(t):
+    r"\{[^}]*\}|\(\*[\s\S]*?\*\)|//.*"
+    t.lexer.lineno += t.value.count("\n")
+
+
+def t_STRING(t):
+    r"'([^'\n]|'')*'"
+    t.value = t.value[1:-1].replace("''", "'")
+    return t
+
+
+def t_ID(t):
+    r"[A-Za-z_][A-Za-z0-9_]*"
+    t.type = reserved.get(t.value.lower(), "ID")
+    return t
+
+
+def t_ORDINAL_CONSTANT(t):
+    r"\#\d+"
+    t.value = int(t.value[1:])
+    return t
+
+
+def t_ADDRESS_OF(t):
+    r"@"
+    return t
+
+
+def t_ASIGNATION(t):
+    r":="
+    return t
+
+
+def t_PLUS(t):
+    r"\+"
+    return t
+
+
+def t_MINUS(t):
+    r"-"
+    return t
+
+
+def t_TIMES(t):
+    r"\*"
+    return t
+
+
+def t_DIVIDE(t):
+    r"/"
+    return t
+
+
+def t_LESSEQUAL(t):
+    r"<="
+    return t
+
+
+def t_GREATEREQUAL(t):
+    r">="
+    return t
+
+
+def t_LESS(t):
+    r"<"
+    return t
+
+
+def t_GREATER(t):
+    r">"
+    return t
+
+
+def t_EQUAL(t):
+    r"="
+    return t
+
+
+def t_DISTINT(t):
+    r"<>"
+    return t
+
+
+def t_SEMICOLON(t):
+    r";"
+    return t
+
+
+def t_COMMA(t):
+    r","
+    return t
+
+
+def t_LPAREN(t):
+    r"\("
+    return t
+
+
+def t_RPAREN(t):
+    r"\)"
+    return t
+
+
+def t_LBRACKET(t):
+    r"\["
+    return t
+
+
+def t_RBRACKET(t):
+    r"\]"
+    return t
+
+
+def t_COLON(t):
+    r":"
+    return t
+
+
+def t_DOBLEDOT(t):
+    r"\.\."
+    return t
+
+
+def t_DOT(t):
+    r"\."
+    return t
+
+
+def t_CARET(t):
+    r"\^"
+    return t
+
+
+def t_newline(t):
+    r"\r?\n+"
+    t.lexer.lineno += t.value.count("\n")
+
+
+def t_error(t):
+    print(f"Illegal character '{t.value[0]}' at line {t.lexer.lineno}")
+    t.lexer.skip(1)
+
+
+def t_error_number_id(t):
+    r"\d+[A-Za-z_]+"
+    print(
+        f"Error léxico en línea {t.lexer.lineno}: Número seguido de letras '{t.value}'"
+    )
+    t.lexer.skip(len(t.value))
+
+
+def t_error_invalid_char(t):
+    r"[@$?]+"
+    print(
+        f"Carácter inválido en identificador en línea {t.lexer.lineno}: '{t.value[0]}'"
+    )
+    t.lexer.skip(len(t.value))
+
+
+def t_error_string_unclosed(t):
+    r"'([^'\n]|'')*"
+    print(f"Error léxico en línea {t.lexer.lineno}: Cadena no cerrada")
+    t.lexer.skip(1)
+
+
+t_ignore = " \t\r"
 
 
 def t_ABSOLUTE(t):
     r"absolute"
     return t
 
+
 def t_AND(t):
     r"and"
     return t
+
 
 def t_ARRAY(t):
     r"array"
     return t
 
+
 def t_ASM(t):
     r"asm"
     return t
+
 
 def t_BEGIN(t):
     r"begin"
     return t
 
+
 def t_BYTE(t):
     r"byte"
     return t
+
 
 def t_CASE(t):
     r"case"
     return t
 
+
 def t_CONST(t):
     r"const"
     return t
+
 
 def t_CONSTRUCTOR(t):
     r"constructor"
     return t
 
+
 def t_DESTRUCTOR(t):
     r"destructor"
     return t
 
-def t_EXTERNAL(t):
-    r"external"
-    return t
 
 def t_DIV(t):
     r"div"
     return t
 
+
 def t_DO(t):
     r"do"
     return t
+
 
 def t_DOUBLE(t):
     r"double"
     return t
 
+
 def t_DOWNTO(t):
     r"downto"
     return t
+
 
 def t_ELSE(t):
     r"else"
     return t
 
+
 def t_END(t):
     r"end"
     return t
+
+
+def t_EXTERNAL(t):
+    r"external"
+    return t
+
 
 def t_EXTENDED(t):
     r"extended"
@@ -109,11 +295,6 @@ def t_IMPLEMENTATION(t):
     return t
 
 
-def t_INTEGER(t):
-    r"integer"
-    return t
-
-
 def t_IN(t):
     r"in"
     return t
@@ -134,9 +315,15 @@ def t_INTERRUPT(t):
     return t
 
 
+def t_INTEGER(t):
+    r"integer"
+    return t
+
+
 def t_LABEL(t):
     r"label"
     return t
+
 
 def t_LONGINT(t):
     r"longint"
@@ -212,21 +399,26 @@ def t_SHL(t):
     r"shl"
     return t
 
+
 def t_SHORT(t):
     r"short"
     return t
+
 
 def t_SHORTINT(t):
     r"shortint"
     return t
 
+
 def t_SHR(t):
     r"shr"
     return t
 
+
 def t_SINGLE(t):
     r"single"
     return t
+
 
 def t_THEN(t):
     r"then"
@@ -272,6 +464,7 @@ def t_WITH(t):
     r"with"
     return t
 
+
 def t_WORD(t):
     r"word"
     return t
@@ -312,168 +505,10 @@ def t_WHILE(t):
     return t
 
 
-def t_ASIGNATION(t):
-    r":="
-    return t
-
-
-def t_PLUS(t):
-    r"\+"
-    return t
-
-
-def t_MINUS(t):
-    r"-"
-    return t
-
-
-def t_TIMES(t):
-    r"\*"
-    return t
-
-
-def t_DIVIDE(t):
-    r"/"
-    return t
-
-
-def t_LESS(t):
-    r"<"
-    return t
-
-
-def t_LESSEQUAL(t):
-    r"<="
-    return t
-
-
-def t_GREATER(t):
-    r">"
-    return t
-
-
-def t_GREATEREQUAL(t):
-    r">="
-    return t
-
-
-def t_EQUAL(t):
-    r"="
-    return t
-
-
-def t_DISTINT(t):
-    r"<>"
-    return t
-
-
-def t_SEMICOLON(t):
-    r";"
-    return t
-
-
-def t_COMMA(t):
-    r","
-    return t
-
-
-def t_LPAREN(t):
-    r"\("
-    return t
-
-
-def t_RPAREN(t):
-    r"\)"
-    return t
-
-
-def t_LBRACKET(t):
-    r"\["
-    return t
-
-
-def t_RBRACKET(t):
-    r"\]"
-    return t
-
-
-def t_COLON(t):
-    r":"
-    return t
-
-
-def t_DOT(t):
-    r"\."
-    return t
-
-
-def t_DOBLEDOT(t):
-    r"\.\."
-    return t
-
-
-def t_CARET(t):
-    r"\^"
-    return t
-
-
-def t_ID(t):
-    r"[A-Za-z_][A-Za-z0-9_]*"
-    t.type = reserved.get(t.value.lower(), "ID")
-    return t
-
-def t_NATURALNUMBER(t):
-    r"\d+"
-    return t
-
-def t_INTEGERNUMBER(t):
-    r"-?\d+"
-    return t
-
-
 def t_NUMBER(t):
-    r"-?\d+(\.\d+)?([eE][-+]?\d+)?(?=\W|$)"
+    r"-?\d+(\.\d+)?([eE][-+]?\d+)?"
+    if "." in t.value or "e" in t.value.lower():
+        t.value = float(t.value)
+    else:
+        t.value = int(t.value)
     return t
-
-
-def t_COMMENT(t):
-    r"\{[^}]*\}|\(\*[\s\S]*?\*\)|//.*"
-    t.lexer.lineno += t.value.count("\n")
-    pass
-
-
-def t_STRING(t):
-    r"'([^'\n]|'')*'"
-    return t
-
-
-def t_newline(t):
-    r"\n+"
-    t.lexer.lineno += len(t.value)
-
-
-# Error handling
-
-
-def t_error(t):
-    print(f"Illegal character '{t.value[0]}'")
-    t.lexer.skip(1)
-
-
-def t_error_number_id(t):
-    r"\d+[A-Za-z_]+"
-    print(f"Error léxico: Número seguido de letras '{t.value}'")
-
-
-
-def t_error_invalid_char(t):
-    r"[@$?]+"
-    print(f"Carácter inválido en identificador: '{t.value[0]}'")
-
-
-def t_STRING_UNCLOSED(t):
-    r"'([^'\n]|'')*"
-    print("Error léxico: Cadena no cerrada")
-
-
-t_ignore = " \t"
