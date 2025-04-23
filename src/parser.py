@@ -162,6 +162,8 @@ def p_type_range_list(p):
 
 def p_type_range(p):
     """type_range : NUMBER DOBLEDOT NUMBER
+    | NUMBER DOBLEDOT ID
+    | ID DOBLEDOT NUMBER
     | CHAR DOBLEDOT CHAR
     | ID DOBLEDOT ID
     | ID"""
@@ -298,9 +300,9 @@ def p_var_list(p):
 
 
 def p_var_declaration(p):
-    """var_declaration : id_list COLON data_type_list SEMICOLON
-    | id_list COLON data_type_list EQUAL expression SEMICOLON
-    | id_list COLON data_type_list ABSOLUTE ID SEMICOLON"""  # Added ABSOLUTE
+    """var_declaration : id_list COLON type_definition SEMICOLON
+    | id_list COLON type_definition EQUAL expression SEMICOLON
+    | id_list COLON type_definition ABSOLUTE ID SEMICOLON"""  # Added ABSOLUTE
     pass
 
 
@@ -358,23 +360,31 @@ def p_parameter_group(p):
 
 
 def p_data_type_list(p):
-    """data_type_list : INTEGER
-    | BYTE
-    | LONGINT
-    | SHORTINT
-    | WORD
-    | REAL
-    | SINGLE
-    | DOUBLE
-    | EXTENDED
-    | SHORT
-    | BOOLEAN
-    | CHAR
-    | STRING
-    | STRING LBRACKET NUMBER RBRACKET
-    | ID
-    | ABSOLUTE ID
-    | FILE"""
+    """
+    data_type_list : INTEGER
+                   | BYTE
+                   | LONGINT
+                   | SHORTINT
+                   | WORD
+                   | REAL
+                   | SINGLE
+                   | DOUBLE
+                   | EXTENDED
+                   | SHORT
+                   | BOOLEAN
+                   | CHAR
+                   | STRING
+                   | STRING LBRACKET NUMBER RBRACKET
+                   | ID
+                   | ABSOLUTE ID
+                   | FILE
+                   | array_type
+                   | pointer_type
+                   | record_type
+                   | set_type
+                   | file_type
+                   | object_type
+                   | string_type"""
     pass
 
 
@@ -426,7 +436,9 @@ def p_asm_statement(p):
 
 
 def p_assignment(p):
-    """assignment : variable ASIGNATION expression"""
+    """assignment : variable ASIGNATION expression
+    | ID ASIGNATION expression
+    """
     pass
 
 
@@ -602,7 +614,9 @@ def p_variable(p):
     """variable : ID
     | variable DOT ID
     | variable LBRACKET expression_list RBRACKET
-    | variable CARET"""
+    | variable CARET
+    | LPAREN variable RPAREN CARET
+    """
     pass
 
 
