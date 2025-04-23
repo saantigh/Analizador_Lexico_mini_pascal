@@ -150,7 +150,9 @@ def p_record_type(p):
 
 def p_array_type(p):
     """array_type : ARRAY LBRACKET type_range_list RBRACKET OF data_type_list
-    | PACKED ARRAY LBRACKET type_range_list RBRACKET OF data_type_list"""
+    | PACKED ARRAY LBRACKET type_range_list RBRACKET OF data_type_list
+    | ARRAY OF data_type_list
+    """
     pass
 
 
