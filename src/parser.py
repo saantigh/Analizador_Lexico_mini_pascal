@@ -451,7 +451,9 @@ def p_procedure_call(p):
     | variable DOT ID LPAREN expression_list RPAREN
     | variable DOT ID LPAREN RPAREN
     | NEW LPAREN expression_list RPAREN
-    | NEW LPAREN RPAREN"""
+    | NEW LPAREN RPAREN
+    | DISPOSE LPAREN expression_list RPAREN
+    | DISPOSE LPAREN RPAREN"""
     pass
 
 
@@ -484,7 +486,8 @@ def p_case_label(p):
 
 def p_for_statement(p):
     """for_statement : FOR ID ASIGNATION expression TO expression DO sentence
-    | FOR ID ASIGNATION expression DOWNTO expression DO sentence"""
+    | FOR ID ASIGNATION expression DOWNTO expression DO sentence
+    | FOR ID IN expression DO sentence"""
     pass
 
 
