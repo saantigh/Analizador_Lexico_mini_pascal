@@ -81,6 +81,10 @@ reserved = {
 tokens = [
     "ID",
     "NUMBER",
+    "PLUS_ASIGN",   # <— nuevo
+    "MINUS_ASIGN",  # <— nuevo
+    "TIMES_ASIGN",  # <— nuevo
+    "DIVIDE_ASIGN", # <— nuevo
     "ASIGNATION",
     "PLUS",
     "MINUS",

@@ -1,3 +1,7 @@
+t_PLUS_ASIGN    = r"\+\:\="
+t_MINUS_ASIGN   = r"\-\:\="
+t_TIMES_ASIGN   = r"\*\:\="
+t_DIVIDE_ASIGN  = r"/\:\="
 t_ASIGNATION = r":="
 t_PLUS = r"\+"
 t_MINUS = r"-"

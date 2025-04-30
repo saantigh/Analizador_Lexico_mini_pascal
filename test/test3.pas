@@ -246,6 +246,7 @@ BEGIN
   
   200:
   writeln('Fin del procedimiento');
+  x+:=10;
 END;
 BEGIN
   ImprimirMensaje('Programa iniciado');

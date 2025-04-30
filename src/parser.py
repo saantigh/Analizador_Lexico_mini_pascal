@@ -440,6 +440,16 @@ def p_asm_statement(p):
 def p_assignment(p):
     """assignment : variable ASIGNATION expression
     | ID ASIGNATION expression
+    | variable PLUS_ASIGN    expression      
+    | ID       PLUS_ASIGN    expression
+    | variable MINUS_ASIGN   expression      
+    | ID       MINUS_ASIGN   expression
+    | variable TIMES_ASIGN   expression      
+    | ID       TIMES_ASIGN   expression
+    | variable DIVIDE_ASIGN  expression      
+    | ID       DIVIDE_ASIGN  expression
+    | variable EQUAL         expression    
+    | ID       EQUAL         expression
     """
     pass
 

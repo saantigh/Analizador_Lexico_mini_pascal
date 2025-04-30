@@ -29,6 +29,21 @@ def t_ADDRESS_OF(t):
     r"@"
     return t
 
+def t_PLUS_ASIGN(t):
+    r"\+:="
+    return t
+
+def t_MINUS_ASIGN(t):
+    r"-:="
+    return t
+
+def t_TIMES_ASIGN(t):
+    r"\*:="
+    return t
+
+def t_DIVIDE_ASIGN(t):
+    r"/:="
+    return t
 
 def t_ASIGNATION(t):
     r":="
