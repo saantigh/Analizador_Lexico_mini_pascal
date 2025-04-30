@@ -7,21 +7,24 @@ from src.tokens import *
 from src.parser import parser
 
 
-def test_lexer(data, lexer):
+def test_lexer(data, lexer, verbose=False):
     """Test the lexical analyzer and print each token."""
     lexer.input(data)
     tokens_found = []
     errors = False
 
-    print("\nTokens found:")
-    print("-" * 40)
+    if verbose:
+        print("\nTokens found:")
+        print("-" * 40)
 
     while True:
         tok = lexer.token()
         if not tok:
             break
         tokens_found.append(tok)
-        print(f"Line {tok.lineno}: {tok.type}({tok.value})")
+
+        if verbose:
+            print(f"Line {tok.lineno}: {tok.type}({tok.value})")
 
     print("-" * 40)
     print(f"Total tokens: {len(tokens_found)}")
@@ -63,7 +66,7 @@ def main() -> None:
         print("=" * 50)
 
         print("\nPerforming lexical analysis...")
-        lex_success = test_lexer(data, lexer)
+        lex_success = test_lexer(data, lexer, verbose=False)
 
         parse_success = False
         if lex_success:
