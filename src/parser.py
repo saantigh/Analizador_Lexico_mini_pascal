@@ -680,18 +680,18 @@ def p_error(p):
             start_of_line = p.lexer.lexdata.rfind("\n", 0, p.lexpos) + 1
             column = p.lexpos - start_of_line + 1
 
-            print(f"\nError sintáctico en la línea {line_num}, columna {column}:")
+            print(f"\nSyntactic error in line {line_num}, column {column}:")
             print(f"{line_num}: {error_line}")
             print(" " * (column - 1) + "^")
-            print(f"Token inesperado '{p.value}' de tipo {p.type}")
+            print(f"Unexpected token '{p.value}' of type {p.type}")
 
             state = parser.statestack[-1]
             expected = [tok for tok in tokens if parser.action[state].get(tok, 0) != 0]
             if expected:
                 expected_str = ", ".join(expected)
-                print(f"Se esperaba uno de los siguientes tokens: {expected_str}")
+                print(f"One of the following tokens was expected: {expected_str}")
             else:
-                print("No se pudo determinar los tokens esperados.")
+                print("Expected tokens could not be determined.")
 
             if line_num > 1:
                 print(f"{line_num-1}: {lines[line_num-2]}")
@@ -699,18 +699,18 @@ def p_error(p):
                 print(f"{line_num+1}: {lines[line_num]}")
         else:
             print(
-                f"\nError sintáctico en token {p.type}, valor '{p.value}', línea {p.lineno}"
+                f"\nSintactic error of type {p.type}, value '{p.value}', line {p.lineno}"
             )
             print(
-                f"ADVERTENCIA: La línea {p.lineno} está fuera del rango del archivo (1-{len(lines)})"
+                f"WARNING: The line {p.lineno} is outside the range of file(1-{len(lines)})"
             )
 
         raise SyntaxError(
-            f"Error de sintaxis en línea {p.lineno}, columna {column}: token inesperado '{p.type}'"
+            f"Sintactic error in line {p.lineno}, column {column}: unexpected token '{p.type}'"
         )
     else:
-        print("\nError sintáctico al final del archivo")
-        raise SyntaxError("Error de sintaxis: fin de archivo inesperado")
+        print("\nSintactic error at end of file (EOF).")
+        raise SyntaxError("Syntactic error: unexpected end of file")
 
 
 parser = yacc.yacc()
