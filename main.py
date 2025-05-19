@@ -35,7 +35,7 @@ def test_parser(data, parser, lexer):
     """Test the syntax analyzer and report results."""
     try:
         lexer.lineno = 1
-        result = parser.parse(data, lexer=lexer, debug=0)
+        result = parser.parse(data, lexer=lexer, debug=True)
 
         if result:
             print("\nParsing successful!")

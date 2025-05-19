@@ -29,21 +29,26 @@ def t_ADDRESS_OF(t):
     r"@"
     return t
 
+
 def t_PLUS_ASIGN(t):
     r"\+:="
     return t
+
 
 def t_MINUS_ASIGN(t):
     r"-:="
     return t
 
+
 def t_TIMES_ASIGN(t):
     r"\*:="
     return t
 
+
 def t_DIVIDE_ASIGN(t):
     r"/:="
     return t
+
 
 def t_ASIGNATION(t):
     r":="
@@ -157,6 +162,7 @@ def t_newline(t):
 
 def t_error(t):
     print(f"Illegal character '{t.value[0]}' at line {t.lexer.lineno}")
+    t.lexer.lexical_error_occurred = True
     t.lexer.skip(1)
 
 
@@ -165,6 +171,7 @@ def t_error_number_id(t):
     print(
         f"Error léxico en línea {t.lexer.lineno}: Número seguido de letras '{t.value}'"
     )
+    t.lexer.lexical_error_occurred = True
     t.lexer.skip(len(t.value))
 
 
@@ -173,12 +180,14 @@ def t_error_invalid_char(t):
     print(
         f"Carácter inválido en identificador en línea {t.lexer.lineno}: '{t.value[0]}'"
     )
+    t.lexer.lexical_error_occurred = True
     t.lexer.skip(len(t.value))
 
 
 def t_error_string_unclosed(t):
     r"'([^'\n]|'')*"
     print(f"Error léxico en línea {t.lexer.lineno}: Cadena no cerrada")
+    t.lexer.lexical_error_occurred = True
     t.lexer.skip(1)
 
 
