@@ -56,7 +56,7 @@ def main() -> None:
     if len(sys.argv) > 1:
         fin = sys.argv[1]
     else:
-        fin = "test/test3.pas"
+        fin = "test/test_c5.pas"
 
     try:
         with open(fin, "r", encoding="utf-8") as f:
