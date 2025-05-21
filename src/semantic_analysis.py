@@ -222,7 +222,7 @@ def add_symbol(
     """
     Añade o actualiza un símbolo en la tabla de símbolos.
     - name: Nombre del identificador.
-    - kind: 'variable', 'constant', 'type', 'procedure', 'function', 'parameter', 'return_variable', etc.
+    - kind: 'variable', 'constant', 'type', 'procedure', 'function', 'parameter', 'return_variable', 'enum_literal', etc.
     - type_desc: Descriptor del tipo del símbolo.
     - lineno: Número de línea de la declaración.
     - value: Valor (para constantes, o info adicional como modo de parámetro).
@@ -231,7 +231,7 @@ def add_symbol(
     - is_forward_declaration_itself: True si ESTA llamada a add_symbol es para una declaración FORWARD.
     - target_scope_dict: El diccionario de scope específico donde añadir/actualizar. Si es None, usa el scope actual.
 
-    Retorna True si la operación fue exitosa, False si hubo un error semántico (ej. redefinición).
+    Retorna la entrada del símbolo si la operación fue exitosa, False si hubo un error semántico (ej. redefinición).
     """
     name_lower = name.lower()
 
@@ -242,35 +242,32 @@ def add_symbol(
     scope_level_of_target = current_scope_level
     if target_scope_dict:
         try:
-
             found_level = None
             for i in range(len(symbol_table_stack) - 1, -1, -1):
                 if symbol_table_stack[i] is target_scope_dict:
                     found_level = symbol_table_stack[i].get(
                         "__level__",
-                        current_scope_level - ((len(symbol_table_stack) - 1) - i),
+                        current_scope_level -
+                        ((len(symbol_table_stack) - 1) - i),
                     )
                     break
             if found_level is not None:
                 scope_level_of_target = found_level
-
         except Exception:
+
             pass
 
     if name_lower in scope_to_interact_with:
         existing_entry = scope_to_interact_with[name_lower]
 
         if existing_entry.get("is_forward"):
-
             if is_forward_declaration_itself:
                 print_semantic_error(
                     f"'{name}' re-declared as FORWARD at line {lineno} (previous FORWARD at line {existing_entry['lineno']}).",
                     lineno,
                 )
                 return False
-
             else:
-
                 if existing_entry["kind"] != kind:
                     print_semantic_error(
                         f"Cannot change kind of '{name}' from '{existing_entry['kind']}' (FORWARD) to '{kind}' at line {lineno}.",
@@ -279,50 +276,43 @@ def add_symbol(
                     return False
 
                 if existing_entry["kind"] in ["procedure", "function"]:
-                    if len(existing_entry.get("params", [])) != len(
-                        params if params else []
-                    ):
+                    existing_params = existing_entry.get("params", [])
+                    current_params = params if params else []
+                    if len(existing_params) != len(current_params):
                         print_semantic_error(
-                            f"Parameter count mismatch for '{name}' at line {lineno}. Expected {len(existing_entry.get('params', []))}, got {len(params if params else [])}.",
+                            f"Parameter count mismatch for '{name}' definition at line {lineno}. Expected {len(existing_params)}, got {len(current_params)}.",
                             lineno,
                         )
                         return False
 
                     if existing_entry["kind"] == "function":
-
                         expected_return_type = (
                             existing_entry["type"][2]
-                            if len(existing_entry["type"]) > 2
+                            if existing_entry["type"] and len(existing_entry["type"]) > 2
                             else None
                         )
                         current_return_type = (
-                            type_desc[2] if len(type_desc) > 2 else None
+                            type_desc[2] if type_desc and len(
+                                type_desc) > 2 else None
                         )
-                        if not are_types_compatible(
-                            expected_return_type, current_return_type
-                        ):
+                        if not are_types_compatible(expected_return_type, current_return_type):
                             print_semantic_error(
-                                f"Return type mismatch for function '{name}' at line {lineno}. Expected '{expected_return_type}', got '{current_return_type}'.",
+                                f"Return type mismatch for function '{name}' definition at line {lineno}. Expected '{expected_return_type}', got '{current_return_type}'.",
                                 lineno,
                             )
                             return False
 
                 existing_entry["defined"] = True
                 existing_entry["is_forward"] = False
+
                 existing_entry["type"] = type_desc
-                existing_entry["params"] = (
-                    params if params else existing_entry.get("params", [])
-                )
+                existing_entry["params"] = params if params else existing_entry.get("params", [
+                ])
                 existing_entry["lineno_defined"] = lineno
-
-                return True
-
+                return existing_entry
         else:
-
-            if (
-                existing_entry["kind"] == "return_variable"
-                and kind == "return_variable"
-            ):
+            if (existing_entry["kind"] == "return_variable" and kind == "return_variable" and
+                    existing_entry["scope_level"] == scope_level_of_target):
 
                 pass
             else:
@@ -332,25 +322,40 @@ def add_symbol(
                 )
                 return False
 
+    new_entry = {
+        "id": name,
+        "kind": kind,
+        "type": type_desc,
+        "value": value,
+        "params": params if params else [],
+        "defined": defined,
+        "is_forward": is_forward_declaration_itself,
+        "lineno": lineno,
+        "scope_level": scope_level_of_target,
+        "lineno_defined": (
+            lineno if defined and not is_forward_declaration_itself else None
+        ),
+    }
+
+    if kind == 'variable':
+        new_entry['initialized'] = False
+    elif kind == 'parameter':
+        param_mode = value.get('mode', 'value') if isinstance(
+            value, dict) else 'value'
+
+        new_entry['initialized'] = (param_mode != 'var')
+    elif kind == 'return_variable':
+
+        new_entry['initialized'] = False
+    elif kind == 'constant' or kind == 'enum_literal':
+
+        new_entry['initialized'] = True
     else:
-        scope_to_interact_with[name_lower] = {
-            "id": name,
-            "kind": kind,
-            "type": type_desc,
-            "value": value,
-            "params": params if params else [],
-            "defined": defined,
-            "is_forward": is_forward_declaration_itself,
-            "lineno": lineno,
-            "scope_level": scope_level_of_target,
-            "lineno_defined": (
-                lineno if defined and not is_forward_declaration_itself else None
-            ),
-        }
 
-        return True
+        new_entry['initialized'] = True
 
-    return False
+    scope_to_interact_with[name_lower] = new_entry
+    return new_entry
 
 
 def update_forward_declaration(name, params, return_type, lineno):
@@ -365,7 +370,8 @@ def update_forward_declaration(name, params, return_type, lineno):
             entry["lineno_defined"] = lineno
 
             return True
-    print_semantic_error(f"No matching forward declaration found for '{name}'.", lineno)
+    print_semantic_error(
+        f"No matching forward declaration found for '{name}'.", lineno)
     return False
 
 
@@ -426,12 +432,14 @@ def get_type_descriptor(type_name_or_def, lineno):
         elif type_name_or_def.lower() in PREDEFINED_TYPES:
             return PREDEFINED_TYPES[type_name_or_def.lower()]["type_def"]
         else:
-            print_semantic_error(f"Type '{type_name_or_def}' not defined.", lineno)
+            print_semantic_error(
+                f"Type '{type_name_or_def}' not defined.", lineno)
             return ("ERROR_TYPE", f"Undefined type: {type_name_or_def}")
     elif isinstance(type_name_or_def, (tuple, list)):
         return type_name_or_def
     else:
-        print_semantic_error(f"Invalid type specification: {type_name_or_def}.", lineno)
+        print_semantic_error(
+            f"Invalid type specification: {type_name_or_def}.", lineno)
         return ("ERROR_TYPE", f"Invalid type spec: {type_name_or_def}")
 
 
@@ -672,7 +680,8 @@ def is_char_type(type_desc):
     if not isinstance(type_desc, tuple) or len(type_desc) < 2:
         return False
     return type_desc == ("PRIMITIVE", "CHAR") or (
-        type_desc[0] == "SUBRANGE_TYPE" and type_desc[1] == ("PRIMITIVE", "CHAR")
+        type_desc[0] == "SUBRANGE_TYPE" and type_desc[1] == (
+            "PRIMITIVE", "CHAR")
     )
 
 
@@ -680,7 +689,8 @@ def is_boolean_type(type_desc):
     if not isinstance(type_desc, tuple) or len(type_desc) < 2:
         return False
     return type_desc == ("PRIMITIVE", "BOOLEAN") or (
-        type_desc[0] == "SUBRANGE_TYPE" and type_desc[1] == ("PRIMITIVE", "BOOLEAN")
+        type_desc[0] == "SUBRANGE_TYPE" and type_desc[1] == (
+            "PRIMITIVE", "BOOLEAN")
     )
 
 
@@ -877,3 +887,20 @@ def get_result_type(operator, type1_desc, type2_desc=None, lineno=0):
         "ERROR_TYPE",
         f"Op ({op}) type resolution failed for {type1_desc}, {type2_desc}",
     )
+
+
+def mark_as_initialized(name, lineno):
+    name_lower = name.lower()
+    for scope in reversed(symbol_table_stack):
+        if name_lower in scope:
+            entry = scope[name_lower]
+
+            if entry['kind'] == 'variable' or \
+               (entry['kind'] == 'parameter' and entry.get('value', {}).get('mode') == 'var'):
+                entry['initialized'] = True
+                return True
+            return False
+
+    print_semantic_error(
+        f"Internal: Symbol '{name}' not found to mark as initialized.", lineno)
+    return False

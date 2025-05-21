@@ -81,7 +81,7 @@ def p_declaration_block(p):
 
 def p_main_block(p):
     """main_block : compound_statement DOT"""
-    p[0] = p[1]
+    p[0] = ('MAIN_BLOCK', p[1])
     pass
 
 
@@ -239,6 +239,53 @@ def p_constant(p):
         )
         p[0] = None
     pass
+
+
+def p_call_argument(p):
+    """call_argument : expression
+                     | expression COLON expression
+                     | expression COLON expression COLON expression"""
+
+    main_expr_type = p[1]
+    lineno_base = p.lineno(1)
+
+    if len(p) > 2:
+        format_width_type = p[3]
+        if not is_integer_type(format_width_type):
+            print_semantic_error(
+                f"Width specifier for formatted output must be an integer, got {format_width_type}.", p.lineno(3))
+
+        if len(p) == 6:
+            format_decimals_type = p[5]
+            if not is_integer_type(format_decimals_type):
+                print_semantic_error(
+                    f"Decimals specifier for formatted output must be an integer, got {format_decimals_type}.", p.lineno(5))
+
+    p[0] = main_expr_type
+
+
+def p_call_argument_list(p):
+    """call_argument_list : call_argument_list COMMA call_argument
+                         | call_argument"""
+    if len(p) == 2:
+        p[0] = [p[1]] if p[1] is not None else [
+            ("ERROR_TYPE", "Invalid argument")]
+    else:
+        if p[1] is None:
+            p[1] = []
+        new_arg_type = p[3] if p[3] is not None else (
+            "ERROR_TYPE", "Invalid argument")
+        p[1].append(new_arg_type)
+        p[0] = p[1]
+
+
+def p_call_argument_list_opt(p):
+    """call_argument_list_opt : call_argument_list
+                              | empty"""
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = []
 
 
 def p_type_declaration_block(p):
@@ -709,7 +756,8 @@ def p_record_declaration(p):
             p[0] = ("variant_part_tag", tag_id_name,
                     tag_type_descriptor, variants_list)
         else:
-            print(f"Internal Error: p_record_declaration len 7 but p[1] is not CASE ({p[1]})")
+            print(
+                f"Internal Error: p_record_declaration len 7 but p[1] is not CASE ({p[1]})")
             p[0] = ("record_decl_error", "Grammar dispatch error len 7")
     elif len(p) == 5:
         list_of_ids = p[1]
@@ -718,9 +766,10 @@ def p_record_declaration(p):
     elif len(p) == 4:
         list_of_ids = p[1]
         field_type_descriptor = p[3]
-        p[0] = ("fixed_field", list_of_ids, field_type_descriptor) 
+        p[0] = ("fixed_field", list_of_ids, field_type_descriptor)
     else:
-        print(f"Internal Error: p_record_declaration with unexpected len(p) = {len(p)}")
+        print(
+            f"Internal Error: p_record_declaration with unexpected len(p) = {len(p)}")
         p[0] = ("record_decl_error", "Unexpected rule length")
     pass
 
@@ -773,6 +822,13 @@ def p_var_declaration_block(p):
 def p_var_list(p):
     """var_list : var_list var_declaration
     | var_declaration"""
+    if len(p) == 2:
+        p[0] = p[1] if p[1] is not None else []
+    else:
+        current_list = p[1] if p[1] is not None else []
+        new_declarations = p[2] if p[2] is not None else []
+        current_list.extend(new_declarations)
+        p[0] = current_list
     pass
 
 
@@ -782,68 +838,76 @@ def p_var_declaration(p):
     | id_list COLON type_definition ABSOLUTE ID SEMICOLON"""
     id_list_names = p[1]
     type_desc = p[3]
-    lineno = p.lineno(1) if id_list_names else p.lineno(2)
 
+    lineno = p.lineno(1) if id_list_names and id_list_names[0] else p.lineno(1)
     if not id_list_names:
-        print_semantic_error(
-            "Missing identifier(s) in var declaration.", p.lineno(2))
-        p[0] = None
+        print_semantic_error("Missing identifier(s) in var declaration.", p.lineno(
+            2) if len(p) > 2 else p.lineno(1))
+        p[0] = []
         return
 
     if not type_desc or (isinstance(type_desc, tuple) and type_desc[0] == "ERROR_TYPE"):
-        print_semantic_error(
-            f"Invalid type for variables '{', '.join(id_list_names)}'. Type error was: {type_desc[1] if isinstance(type_desc, tuple) else 'Unknown'}", lineno)
 
-        p[0] = None
+        for var_name in id_list_names:
+            print_semantic_error(
+                f"Cannot declare variable '{var_name}' due to invalid type definition.", lineno)
+        p[0] = []
         return
 
     declaration_results = []
+    initial_value_node = None
+    absolute_target_node = None
 
     for var_name in id_list_names:
-
-        initial_value_expr_type = None
-        absolute_var_target = None
+        symbol_entry = None
 
         if len(p) == 5:
-            add_symbol(var_name, 'variable', type_desc, p.lineno(1))
-            declaration_results.append(('VAR_DECL', var_name, type_desc))
+            symbol_entry = add_symbol(
+                var_name, 'variable', type_desc, p.lineno(1))
+            if symbol_entry:
+                declaration_results.append(('VAR_DECL', var_name, type_desc))
 
-        elif len(p) == 7 and p[4].lower() == '=':
-
+        elif len(p) == 7 and p.slice[4].type == 'EQUAL':
             initial_value_expr_type = p[5]
-
+            initial_value_node = p[5]
+            is_init_compatible = False
             if not initial_value_expr_type or initial_value_expr_type[0] == "ERROR_TYPE":
                 print_semantic_error(
                     f"Invalid type in initializer for variable '{var_name}'.", p.lineno(5))
-            elif not are_types_compatible(type_desc, initial_value_expr_type, for_assignment=True):
+            elif not are_types_compatible(type_desc, initial_value_expr_type, context="assignment"):
                 print_semantic_error(
                     f"Type mismatch for variable '{var_name}'. Cannot initialize with type '{initial_value_expr_type}' (expected '{type_desc}').", p.lineno(5))
+            else:
+                is_init_compatible = True
 
-            add_symbol(var_name, 'variable', type_desc, p.lineno(1))
-            declaration_results.append(
-                ('VAR_DECL_INIT', var_name, type_desc, initial_value_expr_type))
+            symbol_entry = add_symbol(
+                var_name, 'variable', type_desc, p.lineno(1))
+            if symbol_entry:
+                if is_init_compatible:
+                    symbol_entry['initialized'] = True
+                declaration_results.append(
+                    ('VAR_DECL_INIT', var_name, type_desc, initial_value_node))
 
-        elif len(p) == 7 and p[4].lower() == 'absolute':
+        elif len(p) == 7 and p.slice[4].type == 'ABSOLUTE':
             absolute_var_name = p[5]
+            absolute_target_node = p[5]
             absolute_var_symbol = lookup_symbol(absolute_var_name, p.lineno(5))
-
+            valid_absolute = False
             if not absolute_var_symbol:
-
                 pass
             elif absolute_var_symbol['kind'] != 'variable':
                 print_semantic_error(
-                    f"Identifier '{absolute_var_name}' for ABSOLUTE must be a variable.", p.lineno(5))
+                    f"Identifier '{absolute_var_name}' for ABSOLUTE must be a variable, not {absolute_var_symbol['kind']}.", p.lineno(5))
             else:
-
-                symbol_entry = add_symbol(
-                    var_name, 'variable', type_desc, p.lineno(1))
-                if symbol_entry:
-
-                    current_scope = symbol_table_stack[-1]
-                    current_scope[var_name.lower(
-                    )]['absolute_target'] = absolute_var_name
+                valid_absolute = True
+            symbol_entry = add_symbol(
+                var_name, 'variable', type_desc, p.lineno(1))
+            if symbol_entry:
+                if valid_absolute:
+                    symbol_entry['absolute_target'] = absolute_var_name
                 declaration_results.append(
-                    ('VAR_DECL_ABS', var_name, type_desc, absolute_var_name))
+                    ('VAR_DECL_ABS', var_name, type_desc, absolute_target_node))
+    p[0] = declaration_results
     pass
 
 
@@ -1092,7 +1156,8 @@ def p_parameter_group(p):
 
     if not isinstance(id_names_list, list):
 
-        print_semantic_error(f"Internal error: Expected id_list to be a list in parameter group. Got: {type(id_names_list)}", param_lineno)
+        print_semantic_error(
+            f"Internal error: Expected id_list to be a list in parameter group. Got: {type(id_names_list)}", param_lineno)
         p[0] = []
         return
 
@@ -1213,7 +1278,7 @@ def p_data_type_set(p):
 
 def p_compound_statement(p):
     """compound_statement : BEGIN sentences_list END"""
-    p[0] = p[2]
+    p[0] = ('COMPOUND_STATEMENT', p[2])
     pass
 
 
@@ -1221,6 +1286,14 @@ def p_sentences_list(p):
     """sentences_list : sentences_list sentence SEMICOLON
     | sentence SEMICOLON
     | empty"""
+    if len(p) == 4:
+        current_list = p[1] if p[1] is not None else []
+        current_list.append(p[2])
+        p[0] = current_list
+    elif len(p) == 3:
+        p[0] = [p[1]]
+    else:
+        p[0] = []
     pass
 
 
@@ -1257,14 +1330,18 @@ def p_assignment(p):
     | ID       TIMES_ASIGN   expression
     | variable DIVIDE_ASIGN  expression
     | ID       DIVIDE_ASIGN  expression
-    | variable EQUAL         expression
-    | ID       EQUAL         expression
     """
-    target_is_simple_id = (len(p.slice) > 1 and p.slice[1].type == 'ID' and p.slice[2].type != 'DOT' and p.slice[2].type != 'LBRACKET' and p.slice[2].type != 'CARET') 
+    target_is_simple_id = (len(p.slice) > 1 and p.slice[1].type == 'ID' and
+                           (len(p.slice) <= 2 or (p.slice[2].type != 'DOT' and
+                                                  p.slice[2].type != 'LBRACKET' and
+                                                  p.slice[2].type != 'CARET')))
+    target_node = p[1]
+    expr_node = p[3]
+    op_assign_token = p.slice[2]
+    lineno_assign = op_assign_token.lineno
 
     target_type = None
     target_name_for_id_case = None
-    lineno_assign = p.lineno(2)
 
     if target_is_simple_id:
         target_name_for_id_case = p[1]
@@ -1273,179 +1350,239 @@ def p_assignment(p):
             if target_symbol['kind'] in ['variable', 'parameter', 'return_variable', 'field']:
                 target_type = target_symbol['type']
                 if target_symbol['kind'] == 'parameter' and target_symbol.get('value', {}).get('mode') == 'const':
-                    print_semantic_error(f"Cannot assign to CONST parameter '{target_name_for_id_case}'.", p.lineno(1))
+                    print_semantic_error(
+                        f"Cannot assign to CONST parameter '{target_name_for_id_case}'.", p.lineno(1))
                     target_type = ("ERROR_TYPE", "Assign to const param")
+                elif target_symbol['kind'] == 'return_variable' and target_symbol['id'].lower() != current_function_name_being_parsed.lower():
+                    pass
             elif target_symbol['kind'] == 'constant':
-                print_semantic_error(f"Cannot assign to a constant '{target_name_for_id_case}'.", p.lineno(1))
+                print_semantic_error(
+                    f"Cannot assign to a constant '{target_name_for_id_case}'.", p.lineno(1))
                 target_type = ("ERROR_TYPE", "Assign to const")
             else:
-                print_semantic_error(f"Identifier '{target_name_for_id_case}' is not assignable (kind: {target_symbol['kind']}).", p.lineno(1))
+                print_semantic_error(
+                    f"Identifier '{target_name_for_id_case}' is not assignable (kind: {target_symbol['kind']}).", p.lineno(1))
                 target_type = ("ERROR_TYPE", "Not assignable")
         else:
 
-            target_type = ("ERROR_TYPE", f"Undeclared target: {target_name_for_id_case}")
+            target_type = (
+                "ERROR_TYPE", f"Undeclared target: {target_name_for_id_case}")
     else:
         target_type = p[1]
-
     expr_type = p[3]
-    op_assign = p.slice[2].type
-
     if not target_type or target_type[0] == "ERROR_TYPE" or \
        not expr_type or expr_type[0] == "ERROR_TYPE":
-
-        p[0] = None
+        p[0] = ('ASSIGN_ERROR', target_node, op_assign_token.value, expr_node)
         return
 
-    if op_assign == 'ASIGNATION':
-        if not are_types_compatible(target_type, expr_type, context="assignment"):
-            print_semantic_error(f"Type mismatch in assignment. Cannot assign {expr_type} to {target_type}.", lineno_assign)
+    assignment_successful = False
+    if op_assign_token.type == 'ASIGNATION':
+        if are_types_compatible(target_type, expr_type, context="assignment"):
+            assignment_successful = True
+        else:
+            print_semantic_error(
+                f"Type mismatch in assignment. Cannot assign {expr_type} to {target_type} for '{target_name_for_id_case if target_is_simple_id else 'variable'}'.", lineno_assign)
     else:
         temp_op = None
-        if op_assign == 'PLUS_ASIGN': temp_op = '+'
-        elif op_assign == 'MINUS_ASIGN': temp_op = '-'
-        elif op_assign == 'TIMES_ASIGN': temp_op = '*'
-        elif op_assign == 'DIVIDE_ASIGN': temp_op = '/'
+        if op_assign_token.type == 'PLUS_ASIGN':
+            temp_op = '+'
+        elif op_assign_token.type == 'MINUS_ASIGN':
+            temp_op = '-'
+        elif op_assign_token.type == 'TIMES_ASIGN':
+            temp_op = '*'
+        elif op_assign_token.type == 'DIVIDE_ASIGN':
+            temp_op = '/'
         if temp_op:
-            intermediate_result_type = get_result_type(temp_op, target_type, expr_type, lineno_assign)
+            intermediate_result_type = get_result_type(
+                temp_op, target_type, expr_type, lineno_assign)
             if intermediate_result_type[0] != "ERROR_TYPE":
-                if not are_types_compatible(target_type, intermediate_result_type, context="assignment"):
-                    print_semantic_error(f"Type mismatch in compound assignment '{op_assign}'. Result of ({target_type} {temp_op} {expr_type}) is {intermediate_result_type}, which is not assignable to {target_type}.", lineno_assign)
-
+                if are_types_compatible(target_type, intermediate_result_type, context="assignment"):
+                    assignment_successful = True
+                else:
+                    print_semantic_error(
+                        f"Type mismatch in compound assignment '{op_assign_token.value}'. Result of ({target_type} {temp_op} {expr_type}) is {intermediate_result_type}, not assignable to {target_type}.", lineno_assign)
         else:
-            print_semantic_error(f"Unsupported compound assignment operator '{op_assign}'.", lineno_assign)
-    p[0] = None
+            print_semantic_error(
+                f"Unsupported compound assignment operator '{op_assign_token.value}'.", lineno_assign)
+
+    if assignment_successful and target_is_simple_id:
+        mark_as_initialized(target_name_for_id_case, lineno_assign)
+    p[0] = ('ASSIGNMENT', target_node, op_assign_token.value, expr_node) if assignment_successful else (
+        'ASSIGN_ERROR', target_node, op_assign_token.value, expr_node)
     pass
 
 
 def p_procedure_call(p):
     """procedure_call : ID
-    | ID LPAREN expression_list RPAREN
-    | ID LPAREN RPAREN
-    | variable DOT ID LPAREN expression_list RPAREN
-    | variable DOT ID LPAREN RPAREN
-    | NEW LPAREN expression_list RPAREN
-    | NEW LPAREN RPAREN
-    | DISPOSE LPAREN expression_list RPAREN
-    | DISPOSE LPAREN RPAREN"""
-    call_name_token_idx = 1
-    is_method_call = False
-    is_special_call = False
+                      | ID LPAREN call_argument_list_opt RPAREN
+                      | variable DOT ID LPAREN call_argument_list_opt RPAREN
+                      | NEW LPAREN call_argument_list_opt RPAREN
+                      | DISPOSE LPAREN call_argument_list_opt RPAREN"""
     proc_name = None
     arg_expr_types_list = []
     lineno_call = 0
+    is_method_call = False
 
-    if p.slice[1].type == 'ID':
-        if len(p) > 2 and p.slice[2].type == 'DOT':
-            is_method_call = True
+    is_special_call = False
+    first_token_type = p.slice[1].type
 
-            proc_name = p[3]
-            call_name_token_idx = 3
-            lineno_call = p.lineno(3)
-            if len(p) == 7:
-                arg_expr_types_list = p[5] if p[5] else []
-
-        else:
+    if first_token_type == 'ID':
+        if len(p) == 2:
             proc_name = p[1]
-            call_name_token_idx = 1
             lineno_call = p.lineno(1)
-            if len(p) == 5:
-                arg_expr_types_list = p[3] if p[3] else []
-    elif p.slice[1].type in ['NEW', 'DISPOSE']:
+            arg_expr_types_list = []
+        elif len(p) == 5:
+            proc_name = p[1]
+            lineno_call = p.lineno(1)
+            arg_expr_types_list = p[3] if p[3] is not None else []
+        else:
+            print_semantic_error(
+                f"Unexpected structure for ID-based procedure call at line {p.lineno(1)}.", p.lineno(1))
+            p[0] = None
+            return
+
+    elif first_token_type == 'variable':
+        is_method_call = True
+
+        proc_name = p[3]
+        lineno_call = p.lineno(3)
+        arg_expr_types_list = p[5] if p[5] is not None else []
+
+    elif first_token_type in ['NEW', 'DISPOSE']:
         is_special_call = True
         proc_name = p[1].upper()
-        call_name_token_idx = 1
         lineno_call = p.lineno(1)
         if len(p) == 5:
-            arg_expr_types_list = p[3] if p[3] else []
-        elif len(p) == 4 :
-            print_semantic_error(f"Procedure '{proc_name}' requires arguments.", lineno_call)
+            arg_expr_types_list = p[3] if p[3] is not None else []
+        else:
+            print_semantic_error(
+                f"Unexpected structure for {proc_name} call at line {lineno_call}.", lineno_call)
+            p[0] = None
             return
+    else:
+
+        print_semantic_error(
+            f"Internal error: Unhandled procedure call structure at line {p.lineno(1)}.", p.lineno(1))
+        p[0] = None
+        return
+
     if is_special_call:
         if proc_name == 'NEW':
             if not arg_expr_types_list or len(arg_expr_types_list) != 1:
-                print_semantic_error(f"Procedure 'NEW' requires exactly one pointer variable argument.", lineno_call)
+                print_semantic_error(
+                    f"Procedure 'NEW' requires exactly one pointer variable argument.", lineno_call)
+                p[0] = None
                 return
             arg_type = arg_expr_types_list[0]
             if not is_pointer_type(arg_type):
-                print_semantic_error(f"Argument for 'NEW' must be a pointer type, got {arg_type}.", lineno_call)
-                return
+                print_semantic_error(
+                    f"Argument for 'NEW' must be a pointer type, got {arg_type}.", lineno_call)
+
+            p[0] = None
+            return
         elif proc_name == 'DISPOSE':
             if not arg_expr_types_list or len(arg_expr_types_list) != 1:
-                print_semantic_error(f"Procedure 'DISPOSE' requires exactly one pointer variable argument.", lineno_call)
+                print_semantic_error(
+                    f"Procedure 'DISPOSE' requires exactly one pointer variable argument.", lineno_call)
+                p[0] = None
                 return
             arg_type = arg_expr_types_list[0]
-            if not is_pointer_type(arg_type) or arg_type[1] == "NIL":
-                print_semantic_error(f"Argument for 'DISPOSE' must be a non-NIL pointer type, got {arg_type}.", lineno_call)
-                return
+            if not is_pointer_type(arg_type) or arg_type == ("POINTER", "NIL"):
+                print_semantic_error(
+                    f"Argument for 'DISPOSE' must be a non-NIL pointer type, got {arg_type}.", lineno_call)
+            p[0] = None
+            return
+        p[0] = None
         return
 
     if is_method_call:
-        print_semantic_error(f"Object method calls ('{proc_name}') are not fully supported yet.", lineno_call)
+
+        print_semantic_error(
+            f"Object method calls ('{proc_name}') are not fully supported yet.", lineno_call)
+        p[0] = None
         return
 
     if not proc_name:
-        print_semantic_error(f"Could not identify procedure name in call at line {p.lineno(1)}.", p.lineno(1))
+        print_semantic_error(
+            f"Could not identify procedure name in call at line {lineno_call}.", lineno_call)
+        p[0] = None
         return
 
     proc_symbol = lookup_symbol(proc_name, lineno_call)
 
     if not proc_symbol:
+
+        p[0] = None
         return
     kind = proc_symbol.get('kind')
 
     if kind not in ['procedure', 'predefined_procedure']:
         if kind == 'function' or kind == 'predefined_function':
-            print_semantic_error(f"Function '{proc_name}' cannot be called as a procedure (result is discarded). Some Pascals allow this, but it's often a bug.", lineno_call)
-
-            return
+            print_semantic_error(
+                f"Function '{proc_name}' called as a procedure (result discarded) at line {lineno_call}. This is allowed by some compilers but often an error.", lineno_call)
         else:
-            print_semantic_error(f"Identifier '{proc_name}' is not a procedure (kind: {kind}).", lineno_call)
-            return
+            print_semantic_error(
+                f"Identifier '{proc_name}' is not a procedure (kind: {kind}) at line {lineno_call}.", lineno_call)
+        p[0] = None
+        return
 
-    if not proc_symbol.get('defined', False) and proc_symbol.get('is_forward', False):
-        print_semantic_error(f"Cannot call procedure '{proc_name}' as it only has a FORWARD declaration without a body.", lineno_call)
+    if proc_symbol.get('is_forward') and not proc_symbol.get('defined', False):
+        print_semantic_error(
+            f"Cannot call procedure '{proc_name}' as it only has a FORWARD declaration without a body at line {lineno_call}.", lineno_call)
+        p[0] = None
         return
 
     defined_params = []
     if kind == 'procedure':
-
         defined_params = proc_symbol.get('params', [])
     elif kind == 'predefined_procedure':
 
-        params_ok = proc_symbol['params_check_func'](arg_expr_types_list, lineno_call)
-        if not params_ok:
-            pass
+        params_check_func = proc_symbol.get('params_check_func')
+        if params_check_func:
+            if not params_check_func(arg_expr_types_list, lineno_call):
+
+                p[0] = None
+                return
+        elif arg_expr_types_list:
+            print_semantic_error(
+                f"Predefined procedure '{proc_name}' called with arguments but has no parameter checker.", lineno_call)
+            p[0] = None
+            return
+        p[0] = None
         return
 
     if len(arg_expr_types_list) != len(defined_params):
-        print_semantic_error(f"Incorrect number of arguments for procedure '{proc_name}'. Expected {len(defined_params)}, got {len(arg_expr_types_list)}.", lineno_call)
+        print_semantic_error(
+            f"Incorrect number of arguments for procedure '{proc_name}' at line {lineno_call}. Expected {len(defined_params)}, got {len(arg_expr_types_list)}.", lineno_call)
+        p[0] = None
         return
 
-    for i, arg_actual_type in enumerate(arg_expr_types_list):
-        param_formal_info = defined_params[i]
-        param_formal_type = param_formal_info['type']
-        param_formal_mode = param_formal_info['mode']
+    for i, actual_arg_type in enumerate(arg_expr_types_list):
+        formal_param_info = defined_params[i]
+        formal_param_type = formal_param_info['type']
+        formal_param_mode = formal_param_info['mode']
 
-        if arg_actual_type is None or arg_actual_type[0] == "ERROR_TYPE":
-
-            print_semantic_error(f"Invalid argument {i+1} for procedure '{proc_name}' due to previous error in expression.", lineno_call)
+        if actual_arg_type is None or actual_arg_type[0] == "ERROR_TYPE":
+            print_semantic_error(
+                f"Argument {i+1} for procedure '{proc_name}' at line {lineno_call} has an error or is unresolved.", lineno_call)
+            p[0] = None
             return
 
-        if param_formal_mode == 'var':
-            if param_formal_type != arg_actual_type:
-                print_semantic_error(f"Argument {i+1} for VAR parameter '{param_formal_info['name']}' of procedure '{proc_name}' type mismatch. Expected identical type {param_formal_type}, got {arg_actual_type}.", lineno_call)
+        if formal_param_mode == 'var':
+
+            if not are_types_compatible(formal_param_type, actual_arg_type, context="assignment_var_param"):
+
+                print_semantic_error(
+                    f"Argument {i+1} for VAR parameter '{formal_param_info['name']}' of procedure '{proc_name}' type mismatch at line {lineno_call}. Expected identical type {formal_param_type}, got {actual_arg_type}.", lineno_call)
+                p[0] = None
                 return
 
-        elif param_formal_mode == 'const':
-
-            if not are_types_compatible(param_formal_type, arg_actual_type, context="assignment"):
-                print_semantic_error(f"Argument {i+1} for CONST parameter '{param_formal_info['name']}' of procedure '{proc_name}' type mismatch. Expected compatible with {param_formal_type}, got {arg_actual_type}.", lineno_call)
-                return
-        else:
-            if not are_types_compatible(param_formal_type, arg_actual_type, context="assignment"):
-                print_semantic_error(f"Argument {i+1} for parameter '{param_formal_info['name']}' of procedure '{proc_name}' type mismatch. Expected compatible with {param_formal_type}, got {arg_actual_type}.", lineno_call)
-                return
-    pass
+        elif not are_types_compatible(formal_param_type, actual_arg_type, context="assignment"):
+            print_semantic_error(
+                f"Argument {i+1} for {'CONST ' if formal_param_mode == 'const' else ''}parameter '{formal_param_info['name']}' of procedure '{proc_name}' type mismatch at line {lineno_call}. Expected compatible with {formal_param_type}, got {actual_arg_type}.", lineno_call)
+            p[0] = None
+            return
+    p[0] = None
 
 
 def p_if_statement(p):
@@ -1479,6 +1616,83 @@ def p_for_statement(p):
     """for_statement : FOR ID ASIGNATION expression TO expression DO sentence
     | FOR ID ASIGNATION expression DOWNTO expression DO sentence
     | FOR ID IN expression DO sentence"""
+    loop_var_name = p[2]
+    lineno_loop_var = p.lineno(2)
+    sentence_node = p[len(p)-1]
+
+    loop_var_symbol = lookup_symbol(loop_var_name, lineno_loop_var)
+
+    if not loop_var_symbol:
+        p[0] = ('FOR_STATEMENT_ERROR', f"Loop control variable '{loop_var_name}' not declared.")
+        return
+
+    if loop_var_symbol['kind'] not in ['variable', 'parameter']:
+        print_semantic_error(f"Loop control variable '{loop_var_name}' at line {lineno_loop_var} must be a variable or parameter, not a {loop_var_symbol['kind']}.", lineno_loop_var)
+        p[0] = ('FOR_STATEMENT_ERROR', f"Invalid kind for loop variable '{loop_var_name}'.")
+        return
+
+    loop_var_type = loop_var_symbol['type']
+    if not is_ordinal_type(loop_var_type):
+        print_semantic_error(f"Loop control variable '{loop_var_name}' at line {lineno_loop_var} must be of an ordinal type, got {loop_var_type}.", lineno_loop_var)
+    mark_as_initialized(loop_var_name, lineno_loop_var)
+    initial_expr_type = None
+    final_expr_type = None
+    collection_expr_type = None
+    for_direction_or_in = p.slice[3].type
+
+    if for_direction_or_in == 'ASIGNATION':
+        initial_expr_type = p[4]
+        final_expr_type = p[6]
+        if initial_expr_type and initial_expr_type[0] != "ERROR_TYPE":
+            if not are_types_compatible(loop_var_type, initial_expr_type, context="assignment"):
+                print_semantic_error(f"Type mismatch for loop initial value at line {p.lineno(4)}. '{loop_var_name}' (type {loop_var_type}) cannot be assigned from type {initial_expr_type}.", p.lineno(4))
+        if final_expr_type and final_expr_type[0] != "ERROR_TYPE":
+            if not are_types_compatible(loop_var_type, final_expr_type, context="comparison"):
+                print_semantic_error(f"Type mismatch for loop final value at line {p.lineno(6)}. '{loop_var_name}' (type {loop_var_type}) cannot be compared with type {final_expr_type}.", p.lineno(6))
+        p[0] = ('FOR_ASSIGN_LOOP', 
+                  loop_var_name,
+                  p[4],
+                  p.slice[5].value.upper(),
+                  p[6],
+                  sentence_node)
+
+    elif for_direction_or_in == 'IN':
+        collection_expr_type = p[4]
+
+        if collection_expr_type and collection_expr_type[0] != "ERROR_TYPE":
+
+            if is_set_type(collection_expr_type):
+                set_element_base_type = None
+                if collection_expr_type[0] == 'set_type':
+                    set_element_base_type = collection_expr_type[1]
+                elif collection_expr_type[0] == 'SET_LITERAL_VALUE' and len(collection_expr_type) > 1:
+                    set_element_base_type = collection_expr_type[1]
+
+                if set_element_base_type and set_element_base_type[0] != "ERROR_TYPE":
+                    if not are_ordinal_types_compatible_for_set(loop_var_type, set_element_base_type):
+                        print_semantic_error(f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with set element type {set_element_base_type} at line {p.lineno(4)}.", p.lineno(4))
+                elif not set_element_base_type :
+                    print_semantic_error(f"Cannot determine base type of set expression for 'FOR..IN' loop at line {p.lineno(4)}. Explicitly typed set might be needed.", p.lineno(4))
+
+            elif is_array_type(collection_expr_type):
+
+                array_element_type = collection_expr_type[2]
+                if not are_types_compatible(loop_var_type, array_element_type, context="assignment"):
+                    print_semantic_error(f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with array element type {array_element_type} at line {p.lineno(4)}.", p.lineno(4))
+            elif is_string_type(collection_expr_type):
+
+                if not is_char_type(loop_var_type):
+                    print_semantic_error(f"Loop variable '{loop_var_name}' must be CHAR when iterating over a string, got {loop_var_type} at line {p.lineno(4)}.", p.lineno(4))
+            else:
+                print_semantic_error(f"Expression for 'FOR..IN' loop at line {p.lineno(4)} must be a collection (e.g., set, array, string), got {collection_expr_type}.", p.lineno(4))
+        p[0] = ('FOR_IN_LOOP', 
+                  loop_var_name,
+                  p[4],
+                  sentence_node)
+    else:
+        print_semantic_error(f"Internal error: Unrecognized FOR loop structure at line {p.lineno(1)}.", p.lineno(1))
+        p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR loop structure")
+
     pass
 
 
@@ -1666,7 +1880,8 @@ def p_set_item(p):
     if len(p) == 2:
         expr_type = p[1]
         if not is_ordinal_type(expr_type):
-            print_semantic_error(f"Set elements must be of an ordinal type, got {expr_type}.", p.lineno(1))
+            print_semantic_error(
+                f"Set elements must be of an ordinal type, got {expr_type}.", p.lineno(1))
             p[0] = (("ERROR_TYPE", "Non-ordinal set element"), None)
         else:
             p[0] = (expr_type, None)
@@ -1674,10 +1889,12 @@ def p_set_item(p):
         type1 = p[1]
         type2 = p[3]
         if not (is_ordinal_type(type1) and is_ordinal_type(type2)):
-            print_semantic_error(f"Set range bounds must be ordinal types, got {type1} and {type2}.", p.lineno(1))
+            print_semantic_error(
+                f"Set range bounds must be ordinal types, got {type1} and {type2}.", p.lineno(1))
             p[0] = (("ERROR_TYPE", "Non-ordinal set range"), None)
         elif not are_types_compatible(type1, type2, context="comparison"):
-            print_semantic_error(f"Set range bounds type mismatch: {type1} vs {type2}.", p.lineno(1))
+            print_semantic_error(
+                f"Set range bounds type mismatch: {type1} vs {type2}.", p.lineno(1))
             p[0] = (("ERROR_TYPE", "Mismatched set range types"), None)
         else:
             p[0] = (type1, type2)
@@ -1710,27 +1927,33 @@ def p_set_constructor(p):
             type_lower, type_upper = item_desc
             if type_lower[0] == "ERROR_TYPE" or (type_upper and type_upper[0] == "ERROR_TYPE"):
                 has_error = True
-                base_type_of_elements = ("ERROR_TYPE", "Error in set element/range")
+                base_type_of_elements = (
+                    "ERROR_TYPE", "Error in set element/range")
                 break
 
             current_item_base_type = type_lower
             if not is_ordinal_type(current_item_base_type):
-                print_semantic_error(f"Set elements/ranges must be ordinal. Found {current_item_base_type}.", p.lineno(1))
+                print_semantic_error(
+                    f"Set elements/ranges must be ordinal. Found {current_item_base_type}.", p.lineno(1))
                 has_error = True
-                base_type_of_elements = ("ERROR_TYPE", "Non-ordinal in set literal")
+                base_type_of_elements = (
+                    "ERROR_TYPE", "Non-ordinal in set literal")
                 break
             if base_type_of_elements is None:
                 base_type_of_elements = current_item_base_type
             elif not are_ordinal_types_compatible_for_set(base_type_of_elements, current_item_base_type):
-                print_semantic_error(f"Inconsistent element types in set constructor. Expected compatible with {base_type_of_elements}, got {current_item_base_type}.", p.lineno(1))
+                print_semantic_error(
+                    f"Inconsistent element types in set constructor. Expected compatible with {base_type_of_elements}, got {current_item_base_type}.", p.lineno(1))
                 has_error = True
-                base_type_of_elements = ("ERROR_TYPE", "Inconsistent set element types")
+                base_type_of_elements = (
+                    "ERROR_TYPE", "Inconsistent set element types")
                 break
         if has_error:
-            p[0] = ("ERROR_TYPE", base_type_of_elements[1] if isinstance(base_type_of_elements, tuple) else "Set literal error")
+            p[0] = ("ERROR_TYPE", base_type_of_elements[1] if isinstance(
+                base_type_of_elements, tuple) else "Set literal error")
         else:
-            p[0] = ("SET_LITERAL_VALUE", base_type_of_elements, item_descriptors_list)
-
+            p[0] = ("SET_LITERAL_VALUE", base_type_of_elements,
+                    item_descriptors_list)
     pass
 
 
@@ -1743,141 +1966,171 @@ def p_variable(p):
     """
     if len(p) == 2 and p.slice[1].type == 'ID':
         var_name = p[1]
-        symbol_info = lookup_symbol(var_name, p.lineno(1))
+        lineno_var = p.lineno(1)
+        symbol_info = lookup_symbol(var_name, lineno_var)
         if symbol_info:
+            if symbol_info['kind'] == 'variable' and not symbol_info.get('is_loop_control_var_effectively_initialized', False):
+                if not symbol_info.get('initialized', False):
+                    print_semantic_error(
+                        f"Variable '{symbol_info['id']}' may be used before initialization at line {lineno_var}.",
+                        lineno_var
+                    )
             if symbol_info['kind'] in ['variable', 'constant', 'parameter', 'return_variable', 'enum_literal']:
                 p[0] = symbol_info['type']
-
-            elif symbol_info['kind'] == 'function' and not symbol_info.get('params'):
-
+            elif symbol_info['kind'] == 'function':
+                func_type_desc = symbol_info['type']
+                if func_type_desc and func_type_desc[0] == 'FUNCTION_TYPE':
+                    if not symbol_info.get('params'):
+                        p[0] = func_type_desc[2]
+                    else:
+                        print_semantic_error(
+                            f"Function '{var_name}' used as a variable but requires arguments. Did you mean to call it with '()'?", lineno_var)
+                        p[0] = ("ERROR_TYPE",
+                                f"Function {var_name} used as variable")
+                else:
+                    p[0] = ("ERROR_TYPE",
+                            f"Malformed function symbol for {var_name}")
+            elif symbol_info['kind'] == 'type':
                 print_semantic_error(
-                    f"Cannot use function '{var_name}' as a variable here (did you mean to call it?).", p.lineno(1))
-                p[0] = ("ERROR_TYPE", f"Function {var_name} used as variable")
+                    f"Identifier '{var_name}' is a type, not a variable.", lineno_var)
+                p[0] = ("ERROR_TYPE", f"Type {var_name} used as variable")
             else:
                 print_semantic_error(
-                    f"Identifier '{var_name}' is not a variable, constant or parameter (kind: {symbol_info['kind']}).", p.lineno(1))
+                    f"Identifier '{var_name}' is not a variable, constant, or parameter (kind: {symbol_info['kind']}).", lineno_var)
                 p[0] = ("ERROR_TYPE", f"Not a variable: {var_name}")
         else:
 
             p[0] = ("ERROR_TYPE", f"Undeclared variable: {var_name}")
-
-    elif p.slice[2].type == 'DOT':
-        record_var_type = p[1]
-        field_name = p[3].lower()
-        lineno_field = p.lineno(3)
-
-        if not record_var_type or record_var_type[0] == "ERROR_TYPE":
-            p[0] = record_var_type
+        pass
+    elif len(p) > 2:
+        base_var_type_node = p[1]
+        if base_var_type_node and base_var_type_node[0] == "ERROR_TYPE":
+            p[0] = base_var_type_node
             return
 
-        actual_record_type = record_var_type
-        if record_var_type[0] == 'POINTER':
-            actual_record_type = record_var_type[1]
-            if not actual_record_type or actual_record_type[0] == "ERROR_TYPE":
-                print_semantic_error(
-                    f"Pointer does not point to a valid type for field access of '{field_name}'.", lineno_field)
-                p[0] = ("ERROR_TYPE", "Invalid pointer deref for field")
-                return
+        if p.slice[2].type == 'DOT':
+            record_var_type = base_var_type_node
+            field_name = p[3]
+            lineno_field = p.lineno(3)
+            actual_record_type = record_var_type
 
-        if actual_record_type[0] == 'record_type':
-
-            found_field_type = None
-            fields_and_variants = actual_record_type[1]
-            for field_desc in fields_and_variants:
-                if field_desc[0] == 'fixed_field':
-                    if field_name in [name.lower() for name in field_desc[1]]:
-                        found_field_type = field_desc[2]
-                        break
-
-            if found_field_type:
-                p[0] = found_field_type
-            else:
-                print_semantic_error(
-                    f"Field '{field_name}' not found in record type {actual_record_type}.", lineno_field)
-                p[0] = ("ERROR_TYPE", f"Unknown field {field_name}")
-        else:
-            print_semantic_error(
-                f"Left side of '.' operator must be a record or pointer to record, got {record_var_type}.", p.lineno(1))
-            p[0] = ("ERROR_TYPE", "Not a record for DOT access")
-
-    elif p.slice[2].type == 'LBRACKET':
-        array_var_type = p[1]
-
-        index_expr_types = p[3]
-        lineno_bracket = p.lineno(2)
-
-        if not array_var_type or array_var_type[0] == "ERROR_TYPE":
-            p[0] = array_var_type
-            return
-
-        if array_var_type[0] == 'array_type':
-
-            defined_index_types = array_var_type[1]
-            element_type = array_var_type[2]
-
-            if len(index_expr_types) != len(defined_index_types):
-                print_semantic_error(
-                    f"Incorrect number of dimensions for array access. Expected {len(defined_index_types)}, got {len(index_expr_types)}.", lineno_bracket)
-                p[0] = ("ERROR_TYPE", "Array dimension mismatch")
-                return
-
-            valid_indices = True
-            for i, expr_idx_type in enumerate(index_expr_types):
-                def_idx_type_info = defined_index_types[i]
-
-                if not is_ordinal_type(expr_idx_type):
+            if record_var_type[0] == 'POINTER':
+                actual_record_type = record_var_type[1]
+                if not actual_record_type or actual_record_type[0] == "ERROR_TYPE":
                     print_semantic_error(
-                        f"Array index for dimension {i+1} must be an ordinal type, got {expr_idx_type}.", lineno_bracket)
-                    valid_indices = False
-                    break
+                        f"Pointer does not point to a valid type for field access of '{field_name}'.", lineno_field)
+                    p[0] = ("ERROR_TYPE", "Invalid pointer deref for field")
+                    return
+            if actual_record_type[0] == 'record_type':
+                found_field_type = None
 
-            if valid_indices:
-                p[0] = element_type
-            else:
-                p[0] = ("ERROR_TYPE", "Invalid array index type")
-
-        elif is_string_type(array_var_type):
-            if len(index_expr_types) == 1:
-                if is_integer_type(index_expr_types[0]):
-                    p[0] = ("PRIMITIVE", "CHAR")
+                fields_and_variants = actual_record_type[1]
+                for field_desc in fields_and_variants:
+                    if field_desc[0] == 'fixed_field':
+                        if field_name.lower() in [name.lower() for name in field_desc[1]]:
+                            found_field_type = field_desc[2]
+                            break
+                if found_field_type:
+                    p[0] = found_field_type
                 else:
                     print_semantic_error(
-                        f"String index must be an INTEGER, got {index_expr_types[0]}.", lineno_bracket)
-                    p[0] = ("ERROR_TYPE", "Invalid string index type")
+                        f"Field '{field_name}' not found in record type {actual_record_type}.", lineno_field)
+                    p[0] = ("ERROR_TYPE", f"Unknown field {field_name}")
             else:
                 print_semantic_error(
-                    f"String access requires one INTEGER index, got {len(index_expr_types)} indices.", lineno_bracket)
-                p[0] = ("ERROR_TYPE", "String index dimension error")
-        else:
-            print_semantic_error(
-                f"Identifier '{p[1] if isinstance(p[1],str) else 'expression'}' is not an array or string type for [] access, got {array_var_type}.", p.lineno(1))
-            p[0] = ("ERROR_TYPE", "Not an array/string for []")
+                    f"Left side of '.' operator must be a record or pointer to record, got {record_var_type}.", p.lineno(1))
+                p[0] = ("ERROR_TYPE", "Not a record for DOT access")
+            pass
+        elif p.slice[2].type == 'LBRACKET':
+            array_var_type = base_var_type_node
+            index_expr_types_list = p[3]
+            lineno_bracket = p.lineno(2)
 
-    elif p.slice[-1].type == 'CARET':
-        ptr_var_type = p[1]
-        lineno_caret = p.lineno(len(p)-1)
+            if array_var_type[0] == 'array_type':
 
-        if not ptr_var_type or ptr_var_type[0] == "ERROR_TYPE":
-            p[0] = ptr_var_type
+                defined_index_types = array_var_type[1]
+                element_type = array_var_type[2]
+
+                if len(index_expr_types_list) != len(defined_index_types):
+                    print_semantic_error(
+                        f"Incorrect number of dimensions for array access. Expected {len(defined_index_types)}, got {len(index_expr_types_list)}.", lineno_bracket)
+                    p[0] = ("ERROR_TYPE", "Array dimension mismatch")
+                    return
+
+                valid_indices = True
+                for i, expr_idx_type in enumerate(index_expr_types_list):
+
+                    if not is_ordinal_type(expr_idx_type):
+                        print_semantic_error(
+                            f"Array index for dimension {i+1} must be an ordinal type, got {expr_idx_type}.", lineno_bracket)
+                        valid_indices = False
+                        break
+
+                if valid_indices:
+                    p[0] = element_type
+                else:
+                    p[0] = ("ERROR_TYPE", "Invalid array index type")
+            elif is_string_type(array_var_type):
+                if len(index_expr_types_list) == 1:
+                    if is_integer_type(index_expr_types_list[0]):
+                        p[0] = ("PRIMITIVE", "CHAR")
+                    else:
+                        print_semantic_error(
+                            f"String index must be an INTEGER, got {index_expr_types_list[0]}.", lineno_bracket)
+                        p[0] = ("ERROR_TYPE", "Invalid string index type")
+                else:
+                    print_semantic_error(
+                        f"String access requires one INTEGER index, got {len(index_expr_types_list)} indices.", lineno_bracket)
+                    p[0] = ("ERROR_TYPE", "String index dimension error")
+            else:
+                print_semantic_error(
+                    f"Identifier is not an array or string type for '[]' access, got {array_var_type}.", p.lineno(1))
+                p[0] = ("ERROR_TYPE", "Not an array/string for []")
+            pass
+
+        elif p.slice[-1].type == 'CARET':
+            ptr_var_type = base_var_type_node
+            lineno_caret = p.lineno(len(p)-1)
+
+            if ptr_var_type[0] == 'POINTER':
+                if ptr_var_type[1] == "NIL":
+                    print_semantic_error(
+                        "Cannot dereference a NIL pointer.", lineno_caret)
+                    p[0] = ("ERROR_TYPE", "NIL pointer dereference")
+                else:
+                    p[0] = ptr_var_type[1]
+            elif ptr_var_type[0] == 'file_type':
+                p[0] = ptr_var_type[1]
+            else:
+                print_semantic_error(
+                    f"Cannot dereference non-pointer/non-file type {ptr_var_type} with '^'.", lineno_caret)
+                p[0] = ("ERROR_TYPE", "Not a pointer/file for ^")
+            pass
+    elif len(p) == 5 and p.slice[1].type == 'LPAREN' and p.slice[3].type == 'RPAREN' and p.slice[4].type == 'CARET':
+
+        ptr_var_type_from_paren = p[2]
+        lineno_caret = p.lineno(4)
+
+        if not ptr_var_type_from_paren or ptr_var_type_from_paren[0] == "ERROR_TYPE":
+            p[0] = ptr_var_type_from_paren
             return
 
-        if ptr_var_type[0] == 'POINTER':
-
-            if ptr_var_type[1] == "NIL":
+        if ptr_var_type_from_paren[0] == 'POINTER':
+            if ptr_var_type_from_paren[1] == "NIL":
                 print_semantic_error(
-                    f"Cannot dereference a NIL pointer.", lineno_caret)
+                    "Cannot dereference a NIL pointer.", lineno_caret)
                 p[0] = ("ERROR_TYPE", "NIL pointer dereference")
             else:
-                p[0] = ptr_var_type[1]
-        elif ptr_var_type[0] == 'file_type':
-
-            p[0] = ptr_var_type[1]
+                p[0] = ptr_var_type_from_paren[1]
+        elif ptr_var_type_from_paren[0] == 'file_type':
+            p[0] = ptr_var_type_from_paren[1]
         else:
             print_semantic_error(
-                f"Cannot dereference non-pointer/non-file type {ptr_var_type} with '^'.", lineno_caret)
-            p[0] = ("ERROR_TYPE", "Not a pointer/file for ^")
-
-    pass
+                f"Cannot dereference non-pointer/non-file type {ptr_var_type_from_paren} (from parentheses) with '^'.", lineno_caret)
+            p[0] = ("ERROR_TYPE", "Not a pointer/file for ^ from parens")
+        pass
+    else:
+        pass
 
 
 def p_function_call(p):
@@ -1929,7 +2182,8 @@ def p_function_call(p):
        func_symbol.get('is_forward', False):
         print_semantic_error(
             f"Cannot call function '{func_name}' as it only has a FORWARD declaration without a body.", lineno_call)
-        p[0] = ("ERROR_TYPE", f"Call to undefined forward function {func_name}")
+        p[0] = ("ERROR_TYPE",
+                f"Call to undefined forward function {func_name}")
         return
 
     return_type = None
@@ -1951,7 +2205,8 @@ def p_function_call(p):
         if type_tuple and len(type_tuple) >= 3 and type_tuple[0] == 'FUNCTION_TYPE':
             return_type = type_tuple[2]
         else:
-            print_semantic_error(f"Malformed type descriptor for function '{func_name}'.", lineno_call)
+            print_semantic_error(
+                f"Malformed type descriptor for function '{func_name}'.", lineno_call)
             p[0] = ("ERROR_TYPE", f"Malformed type for {func_name}")
             return
         defined_params = func_symbol.get('params', [])
@@ -1961,14 +2216,16 @@ def p_function_call(p):
             valid_args = False
         else:
             for i, arg_type in enumerate(arg_expr_types):
-                if not valid_args: break
+                if not valid_args:
+                    break
 
                 def_param_info = defined_params[i]
                 def_param_type = def_param_info['type']
                 def_param_mode = def_param_info['mode']
 
                 if arg_type is None or arg_type[0] == "ERROR_TYPE":
-                    print_semantic_error(f"Argument {i+1} for function '{func_name}' has an error or is unresolved.", lineno_call)
+                    print_semantic_error(
+                        f"Argument {i+1} for function '{func_name}' has an error or is unresolved.", lineno_call)
                     valid_args = False
                     break
                 compatibility_context = "assignment"
@@ -1983,14 +2240,16 @@ def p_function_call(p):
                     valid_args = False
 
     if not return_type:
-        print_semantic_error(f"Could not determine return type for function '{func_name}'.", lineno_call)
+        print_semantic_error(
+            f"Could not determine return type for function '{func_name}'.", lineno_call)
         p[0] = ("ERROR_TYPE", f"No return type for {func_name}")
         return
 
     if valid_args:
         p[0] = return_type
     else:
-        p[0] = ("ERROR_TYPE", f"Argument type mismatch or count error for {func_name}")
+        p[0] = ("ERROR_TYPE",
+                f"Argument type mismatch or count error for {func_name}")
     pass
 
 
@@ -1998,17 +2257,15 @@ def p_expression_list(p):
     """expression_list : expression
     | expression_list COMMA expression"""
     if len(p) == 2:
-        if p[1] is None or p[1][0] == "ERROR_TYPE":
-            p[0] = [("ERROR_TYPE", "Error in expression list item")]
-        else:
-            p[0] = [p[1]]
+        p[0] = [p[1]] if p[1] is not None else [
+            ("ERROR_TYPE", "Invalid expression in list")]
     else:
-        if p[3] is None or p[3][0] == "ERROR_TYPE":
-            p[1].append(("ERROR_TYPE", "Error in expression list item"))
-        else:
-            p[1].append(p[3])
+        if p[1] is None:
+            p[1] = []
+        new_expr_type = p[3] if p[3] is not None else (
+            "ERROR_TYPE", "Invalid expression in list")
+        p[1].append(new_expr_type)
         p[0] = p[1]
-    pass
 
 
 precedence = (
