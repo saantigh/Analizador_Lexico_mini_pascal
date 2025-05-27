@@ -1,6 +1,8 @@
 import ply.yacc as yacc
 from src.tokens import tokens
 
+def is_initialized(var_name):
+    return var_name.lower() in initialized_variables
 
 symbol_table_stack = [{}]
 current_scope_level = 0

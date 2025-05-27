@@ -1634,7 +1634,10 @@ def p_for_statement(p):
     loop_var_type = loop_var_symbol['type']
     if not is_ordinal_type(loop_var_type):
         print_semantic_error(f"Loop control variable '{loop_var_name}' at line {lineno_loop_var} must be of an ordinal type, got {loop_var_type}.", lineno_loop_var)
+
+    # Marcar la variable como inicializada antes de su uso en el cuerpo del bucle
     mark_as_initialized(loop_var_name, lineno_loop_var)
+
     initial_expr_type = None
     final_expr_type = None
     collection_expr_type = None
@@ -1671,16 +1674,14 @@ def p_for_statement(p):
                 if set_element_base_type and set_element_base_type[0] != "ERROR_TYPE":
                     if not are_ordinal_types_compatible_for_set(loop_var_type, set_element_base_type):
                         print_semantic_error(f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with set element type {set_element_base_type} at line {p.lineno(4)}.", p.lineno(4))
-                elif not set_element_base_type :
+                elif not set_element_base_type:
                     print_semantic_error(f"Cannot determine base type of set expression for 'FOR..IN' loop at line {p.lineno(4)}. Explicitly typed set might be needed.", p.lineno(4))
 
             elif is_array_type(collection_expr_type):
-
                 array_element_type = collection_expr_type[2]
                 if not are_types_compatible(loop_var_type, array_element_type, context="assignment"):
                     print_semantic_error(f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with array element type {array_element_type} at line {p.lineno(4)}.", p.lineno(4))
             elif is_string_type(collection_expr_type):
-
                 if not is_char_type(loop_var_type):
                     print_semantic_error(f"Loop variable '{loop_var_name}' must be CHAR when iterating over a string, got {loop_var_type} at line {p.lineno(4)}.", p.lineno(4))
             else:
