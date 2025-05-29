@@ -5,10 +5,9 @@ import ply.lex as lex
 from src.rules import *
 from src.tokens import *
 from src.parser import parser
-
+from src.semantic_analysis import *  # Aquí se importa print_symbol_table
 
 def test_lexer(data, lexer, verbose=False):
-    """Test the lexical analyzer and print each token."""
     lexer.input(data)
     tokens_found = []
     errors = False
@@ -32,7 +31,6 @@ def test_lexer(data, lexer, verbose=False):
 
 
 def test_parser(data, parser, lexer):
-    """Test the syntax analyzer and report results."""
     try:
         lexer.lineno = 1
         result = parser.parse(data, lexer=lexer, debug=True)
@@ -56,7 +54,7 @@ def main() -> None:
     if len(sys.argv) > 1:
         fin = sys.argv[1]
     else:
-        fin = "test/test_c2.pas"
+        fin = "test/test_e2.pas"
 
     try:
         with open(fin, "r", encoding="utf-8") as f:
@@ -77,6 +75,7 @@ def main() -> None:
 
         if lex_success and parse_success:
             print("Compilation successful! No errors detected.")
+            print_symbol_table()  # ✅ Llamada colocada aquí
         else:
             print("Compilation failed! Errors detected.")
     except FileNotFoundError:
@@ -92,3 +91,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+    

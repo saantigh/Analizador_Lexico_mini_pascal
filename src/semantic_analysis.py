@@ -1,8 +1,24 @@
 import ply.yacc as yacc
 from src.tokens import tokens
 
+initialized_variables = set()
 
 symbol_table_stack = [{}]
+
+def mark_as_initialized(var_name, lineno=None):
+    if isinstance(var_name, str):
+        initialized_variables.add(var_name.lower())
+    else:
+        print_semantic_error(
+            f"Internal error: expected variable name as string in mark_as_initialized, got {type(var_name)}.",
+            lineno or 0
+        )
+
+def is_initialized(var_name):
+    if isinstance(var_name, str):
+        return var_name.lower() in initialized_variables
+    return False
+
 current_scope_level = 0
 semantic_errors = []
 
@@ -888,33 +904,28 @@ def get_result_type(operator, type1_desc, type2_desc=None, lineno=0):
         f"Op ({op}) type resolution failed for {type1_desc}, {type2_desc}",
     )
 
-
-# En semantic_analysis.py
-
 def mark_as_initialized(name, lineno):
     name_lower = name.lower()
-    print(f"DEBUG_SEM: mark_as_initialized - Intentando marcar '{name_lower}' en línea {lineno} como inicializada.")
-    for i, scope in reversed(list(enumerate(symbol_table_stack))): # Iterar con índice para nombre de scope
-        scope_name_for_debug = scope.get('__scope_name__', f"scope_index_{i}")
+    for scope in reversed(symbol_table_stack):
         if name_lower in scope:
             entry = scope[name_lower]
-            print(f"DEBUG_SEM: mark_as_initialized - Símbolo '{name_lower}' encontrado en scope '{scope_name_for_debug}'. Tipo: {entry['kind']}, Inicializado actualmente: {entry.get('initialized')}")
-            if entry['kind'] == 'variable': # La variable de control de un FOR es una 'variable'
-                entry['initialized'] = True
-                print(f"DEBUG_SEM: mark_as_initialized - SÍMBOLO '{name_lower}' MARCADO COMO INICIALIZADO en scope '{scope_name_for_debug}'.")
-                return True
-            else:
-                # Esto no debería ocurrir para una variable de control de bucle FOR bien declarada.
-                print(f"DEBUG_SEM: mark_as_initialized - Símbolo '{name_lower}' encontrado en scope '{scope_name_for_debug}', PERO es de tipo '{entry['kind']}', no 'variable'. No se marca.")
-                # Decidimos retornar False aquí porque encontramos el símbolo pero no es lo que esperábamos para una variable de bucle.
-                # Si pudiera haber múltiples declaraciones con el mismo nombre y diferentes tipos en diferentes scopes (shadowing),
-                # y quisiéramos seguir buscando, quitaríamos este return False. Pero para la variable de bucle, la primera que encuentre debería ser la correcta.
-                return False 
-        else:
-            print(f"DEBUG_SEM: mark_as_initialized - Símbolo '{name_lower}' NO encontrado en scope '{scope_name_for_debug}'.")
 
-    # Si el bucle termina, el símbolo no se encontró en ninguna tabla de símbolos.
-    print(f"DEBUG_SEM: mark_as_initialized - ERROR GRAVE: Símbolo '{name_lower}' NO encontrado en NINGÚN scope para marcar como inicializado.")
+            if entry['kind'] == 'variable' or \
+               (entry['kind'] == 'parameter' and entry.get('value', {}).get('mode') == 'var'):
+                entry['initialized'] = True
+                return True
+            return False
+
     print_semantic_error(
-        f"Internal Error: Symbol '{name}' not found in any scope to mark as initialized (called from FOR loop).", lineno)
+        f"Internal: Symbol '{name}' not found to mark as initialized.", lineno)
     return False
+
+def print_symbol_table():
+    print("=== TABLA DE SÍMBOLOS ===")
+    for i, scope in enumerate(symbol_table_stack):
+        scope_name = scope.get("__scope_name__", f"Scope {i}")
+        print(f"\nScope {i} - {scope_name}")
+        for key, value in scope.items():
+            if key.startswith("__"):
+                continue  # Saltar metadatos del scope
+            print(f"  {key} : {value}")
