@@ -7,6 +7,7 @@ from src.tokens import *
 from src.parser import parser
 from src.semantic_analysis import *  # Aquí se importa print_symbol_table
 
+
 def test_lexer(data, lexer, verbose=False):
     lexer.input(data)
     tokens_found = []
@@ -75,11 +76,12 @@ def main() -> None:
 
         if lex_success and parse_success:
             print("Compilation successful! No errors detected.")
-            print_symbol_table() 
+            print_symbol_table()
         else:
             print("Compilation failed! Errors detected.")
     except FileNotFoundError:
-        print(f"File '{fin}' not found. Please provide a valid Pascal source file.")
+        print(
+            f"File '{fin}' not found. Please provide a valid Pascal source file.")
         sys.exit(1)
     except Exception as e:
         print(f"An error occurred: {e}")
@@ -91,5 +93,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-    

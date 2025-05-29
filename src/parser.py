@@ -1612,145 +1612,168 @@ def p_case_label(p):
     pass
 
 
-# En parser.py
+
+
+def p_for_control_variable_setup(p):
+    """for_control_variable_setup : FOR ID"""
+
+    loop_var_name = p[2]
+    lineno_loop_var = p.lineno(2)
+
+
+    loop_var_symbol = lookup_symbol(loop_var_name, lineno_loop_var)
+
+
+    if not loop_var_symbol:
+        print_semantic_error(
+            f"Loop control variable '{loop_var_name}' at line {lineno_loop_var} not declared.",
+            lineno_loop_var)
+
+        p[0] = {'name': loop_var_name, 'lineno': lineno_loop_var, 'symbol': None, 'is_valid': False}
+        return
+
+    if loop_var_symbol['kind'] != 'variable':
+        print_semantic_error(
+            f"Loop control identifier '{loop_var_name}' at line {lineno_loop_var} must be a simple variable, not a {loop_var_symbol['kind']}.",
+            lineno_loop_var)
+        p[0] = {'name': loop_var_name, 'lineno': lineno_loop_var, 'symbol': loop_var_symbol, 'is_valid': False}
+        return
+
+    if not is_ordinal_type(loop_var_symbol['type']):
+        print_semantic_error(
+            f"Loop control variable '{loop_var_name}' at line {lineno_loop_var} must be of an ordinal type, got {loop_var_symbol['type']}.",
+            lineno_loop_var)
+        p[0] = {'name': loop_var_name, 'lineno': lineno_loop_var, 'symbol': loop_var_symbol, 'is_valid': False}
+        return
+
+
+    mark_as_initialized(loop_var_name, lineno_loop_var)
+
+    p[0] = {'name': loop_var_name, 'lineno': lineno_loop_var, 'symbol': loop_var_symbol, 'is_valid': True}
+
 
 def p_for_statement(p):
-       """
-       for_statement : FOR ID ASIGNATION expression TO expression DO mark_loop_var sentence
-                     | FOR ID ASIGNATION expression DOWNTO expression DO mark_loop_var sentence
-                     | FOR ID IN expression DO mark_loop_var sentence
-       """
-       loop_var_name = p[2]
-       lineno_loop_var = p.lineno(2)
-       
-       print(f"DEBUG_PARSER: p_for_statement - Iniciando para variable '{loop_var_name}' en línea {lineno_loop_var}. Producción len: {len(p)}")
+    """
+    for_statement : for_control_variable_setup ASIGNATION expression TO expression DO sentence
+                  | for_control_variable_setup ASIGNATION expression DOWNTO expression DO sentence
+                  | for_control_variable_setup IN expression DO sentence
+    """
 
-       loop_var_symbol = lookup_symbol(loop_var_name, lineno_loop_var) # lookup_symbol ya imprime error si no se declara
-   
-       if not loop_var_symbol:
-           p[0] = ('FOR_STATEMENT_ERROR', f"Loop control variable '{loop_var_name}' not declared.")
-           # Limpieza defensiva de atributos del lexer
-           if hasattr(p.lexer, 'current_loop_var_name_for_marking'): del p.lexer.current_loop_var_name_for_marking
-           if hasattr(p.lexer, 'current_loop_var_lineno_for_marking'): del p.lexer.current_loop_var_lineno_for_marking
-           return
-       
-       if loop_var_symbol['kind'] not in ['variable']: # Para un bucle FOR, la variable de control debe ser una 'variable'. No un 'parameter'.
-           print_semantic_error(f"Loop control identifier '{loop_var_name}' at line {lineno_loop_var} must be a simple variable, not a {loop_var_symbol['kind']}.", lineno_loop_var)
-           p[0] = ('FOR_STATEMENT_ERROR', f"Invalid kind for loop variable '{loop_var_name}'.")
-           return
-       
-       if not is_ordinal_type(loop_var_symbol['type']):
-           print_semantic_error(f"Loop control variable '{loop_var_name}' at line {lineno_loop_var} must be of an ordinal type, got {loop_var_symbol['type']}.", lineno_loop_var)
-           p[0] = ('FOR_STATEMENT_ERROR', f"Loop variable '{loop_var_name}' not ordinal.")
-           return
-       
-       # Si todo está bien hasta aquí, preparamos la info para p_mark_loop_var
-       print(f"DEBUG_PARSER: p_for_statement - '{loop_var_name}' es válida. Estableciendo atributos en p.lexer.")
-       p.lexer.current_loop_var_name_for_marking = loop_var_name
-       p.lexer.current_loop_var_lineno_for_marking = lineno_loop_var
-       # p.lexer.current_loop_var_type_for_marking = loop_var_symbol['type'] # Opcional
-   
-       # Aquí PLY procesará 'mark_loop_var' (p[8] o p[6]) antes de 'sentence'
-       # lo que disparará p_mark_loop_var()
-       
-       loop_var_type = loop_var_symbol['type']
-       sentence_node = None
-       initial_expr_node = None
-       final_expr_node = None
-       collection_expr_node = None
-       direction_token_value = None
-   
-       if p.slice[3].type == 'ASIGNATION': 
-           if len(p) != 10: 
-               print_semantic_error(f"Internal parser error: Unexpected length for FOR...TO/DOWNTO rule. Got {len(p)}", lineno_loop_var)
-               p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR...TO/DOWNTO structure")
-               return
+    control_var_info = p[1]
+    loop_var_name = control_var_info['name']
+    loop_var_symbol = control_var_info['symbol']
+    is_valid_control_var = control_var_info['is_valid']
 
-           initial_expr_node = p[4]
-           direction_token_value = p.slice[5].value.upper()
-           final_expr_node = p[6]
-           # p[8] es el resultado de mark_loop_var (que es None)
-           sentence_node = p[9] 
-           print(f"DEBUG_PARSER: p_for_statement (ASSIGN_LOOP) - Initial: {initial_expr_node}, Final: {final_expr_node}, Sentence: {sentence_node}")
-   
-           if initial_expr_node and initial_expr_node[0] != "ERROR_TYPE":
-               if not are_types_compatible(loop_var_type, initial_expr_node, context="assignment"):
-                   print_semantic_error(f"Type mismatch for loop initial value at line {p.lineno(4)}. '{loop_var_name}' (type {loop_var_type}) cannot be assigned from type {initial_expr_node}.", p.lineno(4))
-           if final_expr_node and final_expr_node[0] != "ERROR_TYPE":
-               if not are_types_compatible(loop_var_type, final_expr_node, context="comparison"): # Comparación de tipos para el límite
-                   print_semantic_error(f"Type mismatch for loop final value at line {p.lineno(6)}. '{loop_var_name}' (type {loop_var_type}) cannot be compared with type {final_expr_node}.", p.lineno(6))
-           
-           p[0] = ('FOR_ASSIGN_LOOP', 
-                     loop_var_name,
-                     initial_expr_node, 
-                     direction_token_value,
-                     final_expr_node,   
-                     sentence_node)
-       
-       elif p.slice[3].type == 'IN':
-           if len(p) != 8: 
-               print_semantic_error(f"Internal parser error: Unexpected length for FOR...IN rule. Got {len(p)}", lineno_loop_var)
-               p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR...IN structure")
-               return
+    if not is_valid_control_var:
 
-           collection_expr_node = p[4]
-           sentence_node = p[7] 
-           print(f"DEBUG_PARSER: p_for_statement (IN_LOOP) - Collection: {collection_expr_node}, Sentence: {sentence_node}")
-   
-           if collection_expr_node and collection_expr_node[0] != "ERROR_TYPE":
-               # ... (lógica de comprobación de tipos para FOR..IN que ya tenías)
-                if is_set_type(collection_expr_node):
-                    set_element_base_type = None
-                    if collection_expr_node[0] == 'set_type': 
-                        set_element_base_type = collection_expr_node[1]
-                    elif collection_expr_node[0] == 'SET_LITERAL_VALUE' and len(collection_expr_node) > 1: 
-                        set_element_base_type = collection_expr_node[1] 
-    
-                    if set_element_base_type and set_element_base_type[0] != "ERROR_TYPE":
-                        if not are_ordinal_types_compatible_for_set(loop_var_type, set_element_base_type):
-                            print_semantic_error(f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with set element type {set_element_base_type} at line {p.lineno(4)}.", p.lineno(4))
-                    elif not set_element_base_type :
-                        print_semantic_error(f"Cannot determine base type of set expression for 'FOR..IN' loop at line {p.lineno(4)}. Explicitly typed set might be needed.", p.lineno(4))
-    
-                elif is_array_type(collection_expr_node):
-                    array_element_type = collection_expr_node[2] 
-                    if not are_types_compatible(loop_var_type, array_element_type, context="assignment"): # Asignación implícita
-                        print_semantic_error(f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with array element type {array_element_type} at line {p.lineno(4)}.", p.lineno(4))
-                elif is_string_type(collection_expr_node):
-                    if not is_char_type(loop_var_type):
-                        print_semantic_error(f"Loop variable '{loop_var_name}' must be CHAR when iterating over a string, got {loop_var_type} at line {p.lineno(4)}.", p.lineno(4))
+
+        p[0] = ('FOR_STATEMENT_ERROR', f"Invalid loop control variable '{loop_var_name}'.")
+        return
+
+
+    loop_var_type = loop_var_symbol['type']
+
+
+
+    if p.slice[2].type == 'ASIGNATION':
+        if len(p) != 8:
+            print_semantic_error(f"Internal parser error: Unexpected rule length for FOR...TO/DOWNTO at line {p.lineno(1)}.", p.lineno(1))
+            p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR...TO/DOWNTO structure")
+            return
+
+        initial_expr_type = p[3]
+
+
+        direction_token_value = p[4].upper()
+        final_expr_type = p[5]
+        sentence_node = p[7]
+
+
+        if initial_expr_type and initial_expr_type[0] != "ERROR_TYPE":
+            if not are_types_compatible(loop_var_type, initial_expr_type, context="assignment"):
+                print_semantic_error(
+                    f"Type mismatch for loop initial value at line {p.lineno(3)}. '{loop_var_name}' (type {loop_var_type}) cannot be assigned from type {initial_expr_type}.",
+                    p.lineno(3))
+        if final_expr_type and final_expr_type[0] != "ERROR_TYPE":
+            if not are_types_compatible(loop_var_type, final_expr_type, context="comparison"):
+                print_semantic_error(
+                    f"Type mismatch for loop final value at line {p.lineno(5)}. '{loop_var_name}' (type {loop_var_type}) cannot be compared with type {final_expr_type}.",
+                    p.lineno(5))
+
+        p[0] = ('FOR_ASSIGN_LOOP',
+                loop_var_name,
+                initial_expr_type,
+                direction_token_value,
+                final_expr_type,
+                sentence_node)
+
+
+    elif p.slice[2].type == 'IN':
+        if len(p) != 6:
+            print_semantic_error(f"Internal parser error: Unexpected rule length for FOR...IN at line {p.lineno(1)}.", p.lineno(1))
+            p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR...IN structure")
+            return
+
+        collection_expr_type = p[3]
+        sentence_node = p[5]
+
+
+
+
+        if collection_expr_type and collection_expr_type[0] != "ERROR_TYPE":
+
+
+            if is_set_type(collection_expr_type):
+                set_element_base_type = None
+                if collection_expr_type[0] == 'set_type' and len(collection_expr_type) > 1:
+                    set_element_base_type = collection_expr_type[1]
+                elif collection_expr_type[0] == 'SET_LITERAL_VALUE' and len(collection_expr_type) > 1:
+
+                    set_element_base_type = collection_expr_type[1]
+
+
+                if set_element_base_type and set_element_base_type[0] != "ERROR_TYPE":
+                    if not are_ordinal_types_compatible_for_set(loop_var_type, set_element_base_type):
+                        print_semantic_error(
+                            f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with set element type {set_element_base_type} at line {p.lineno(3)}.",
+                            p.lineno(3))
+                elif not set_element_base_type:
+                    print_semantic_error(
+                        f"Cannot determine base type of set expression for 'FOR..IN' loop at line {p.lineno(3)}. Explicitly typed set might be needed.",
+                        p.lineno(3))
+            elif is_array_type(collection_expr_type):
+
+
+                element_type_idx = 2
+                if len(collection_expr_type) > element_type_idx:
+                    array_element_type = collection_expr_type[element_type_idx]
+                    if not are_types_compatible(loop_var_type, array_element_type, context="assignment"):
+                        print_semantic_error(
+                            f"Loop variable '{loop_var_name}' (type {loop_var_type}) is not compatible with array element type {array_element_type} at line {p.lineno(3)}.",
+                            p.lineno(3))
                 else:
-                    print_semantic_error(f"Expression for 'FOR..IN' loop at line {p.lineno(4)} must be a collection (e.g., set, array, string), got {collection_expr_node}.", p.lineno(4))
+                     print_semantic_error(f"Malformed array type descriptor for FOR..IN: {collection_expr_type}", p.lineno(3))
 
-           p[0] = ('FOR_IN_LOOP', 
-                     loop_var_name,
-                     collection_expr_node, 
-                     sentence_node)
-       else:
-           print_semantic_error(f"Internal error: Unrecognized FOR loop structure after ID at line {p.lineno(3)} with token {p.slice[3].type}.", lineno_loop_var)
-           p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR loop structure")
+            elif is_string_type(collection_expr_type):
+                if not is_char_type(loop_var_type):
+                    print_semantic_error(
+                        f"Loop variable '{loop_var_name}' must be CHAR when iterating over a string, got {loop_var_type} at line {p.lineno(3)}.",
+                        p.lineno(3))
+            else:
+                print_semantic_error(
+                    f"Expression for 'FOR..IN' loop at line {p.lineno(3)} must be a collection (e.g., set, array, string), got {collection_expr_type}.",
+                    p.lineno(3))
 
 
-def p_mark_loop_var(p):
-    """mark_loop_var :""" # Producción vacía
-    loop_var_name = getattr(p.lexer, 'current_loop_var_name_for_marking', None)
-    lineno_loop_var = getattr(p.lexer, 'current_loop_var_lineno_for_marking', None)
-    
-    print(f"DEBUG_PARSER: p_mark_loop_var - Ejecutándose. Var: {loop_var_name}, Lineno: {lineno_loop_var}")
-
-    if loop_var_name and lineno_loop_var is not None:
-        print(f"DEBUG_PARSER: p_mark_loop_var - Llamando a mark_as_initialized para '{loop_var_name}'")
-        success = mark_as_initialized(loop_var_name, lineno_loop_var)
-        print(f"DEBUG_PARSER: p_mark_loop_var - mark_as_initialized retornó: {success}")
-        
-        # Limpiar atributos del lexer
-        del p.lexer.current_loop_var_name_for_marking
-        del p.lexer.current_loop_var_lineno_for_marking
-        if hasattr(p.lexer, 'current_loop_var_type_for_marking'):
-            del p.lexer.current_loop_var_type_for_marking
+        p[0] = ('FOR_IN_LOOP',
+                loop_var_name,
+                collection_expr_type,
+                sentence_node)
     else:
-        print(f"DEBUG_PARSER: p_mark_loop_var - ADVERTENCIA: loop_var_name o lineno_loop_var no encontrados en p.lexer.")
-    p[0] = None 
+
+        print_semantic_error(f"Internal parser error: Unexpected token {p.slice[2].type} after FOR control variable setup at line {p.lineno(2)}.", p.lineno(2))
+        p[0] = ('FOR_STATEMENT_ERROR', "Malformed FOR loop structure")
+
 
 def p_while_statement(p):
     """while_statement : WHILE expression DO sentence"""
@@ -2013,8 +2036,6 @@ def p_set_constructor(p):
     pass
 
 
-# En parser.py
-
 def p_variable(p):
     """variable : ID
     | variable DOT ID
@@ -2025,21 +2046,24 @@ def p_variable(p):
     if len(p) == 2 and p.slice[1].type == 'ID':
         var_name = p[1]
         lineno_var = p.lineno(1)
-        print(f"DEBUG_PARSER: p_variable - Evaluando ID simple '{var_name}' en línea {lineno_var}")
+        print(
+            f"DEBUG_PARSER: p_variable - Evaluando ID simple '{var_name}' en línea {lineno_var}")
         symbol_info = lookup_symbol(var_name, lineno_var)
         if symbol_info:
-            print(f"DEBUG_PARSER: p_variable - Símbolo '{var_name}' encontrado. Tipo: {symbol_info['kind']}, Inicializado: {symbol_info.get('initialized')}")
+            print(
+                f"DEBUG_PARSER: p_variable - Símbolo '{var_name}' encontrado. Tipo: {symbol_info['kind']}, Inicializado: {symbol_info.get('initialized')}")
             if symbol_info['kind'] == 'variable' and not symbol_info.get('initialized', False):
-                # Esta es la condición que dispara tu error.
-                print(f"DEBUG_PARSER: p_variable - ERROR: Variable '{var_name}' usada antes de inicialización.")
-                print_semantic_error( # Asegúrate que esta función existe y funciona
+
+                print(
+                    f"DEBUG_PARSER: p_variable - ERROR: Variable '{var_name}' usada antes de inicialización.")
+                print_semantic_error(
                     f"Variable '{symbol_info['id']}' may be used before initialization at line {lineno_var}.",
                     lineno_var
                 )
-            # ... resto de la lógica de p_variable ...
+
             if symbol_info['kind'] in ['variable', 'constant', 'parameter', 'return_variable', 'enum_literal']:
                 p[0] = symbol_info['type']
-            # ... (el resto de tu lógica para function, type, etc. que ya tenías) ...
+
             elif symbol_info['kind'] == 'function':
                 func_type_desc = symbol_info['type']
                 if func_type_desc and func_type_desc[0] == 'FUNCTION_TYPE':
@@ -2048,9 +2072,11 @@ def p_variable(p):
                     else:
                         print_semantic_error(
                             f"Function '{var_name}' used as a variable but requires arguments. Did you mean to call it with '()'?", lineno_var)
-                        p[0] = ("ERROR_TYPE", f"Function {var_name} used as variable")
+                        p[0] = ("ERROR_TYPE",
+                                f"Function {var_name} used as variable")
                 else:
-                    p[0] = ("ERROR_TYPE", f"Malformed function symbol for {var_name}")
+                    p[0] = ("ERROR_TYPE",
+                            f"Malformed function symbol for {var_name}")
             elif symbol_info['kind'] == 'type':
                 print_semantic_error(
                     f"Identifier '{var_name}' is a type, not a variable.", lineno_var)
@@ -2060,19 +2086,19 @@ def p_variable(p):
                     f"Identifier '{var_name}' is not a variable, constant, or parameter (kind: {symbol_info['kind']}).", lineno_var)
                 p[0] = ("ERROR_TYPE", f"Not a variable: {var_name}")
         else:
-            # lookup_symbol ya debería haber impreso "Identifier not declared"
-            print(f"DEBUG_PARSER: p_variable - Símbolo '{var_name}' NO encontrado por lookup_symbol.")
+
+            print(
+                f"DEBUG_PARSER: p_variable - Símbolo '{var_name}' NO encontrado por lookup_symbol.")
             p[0] = ("ERROR_TYPE", f"Undeclared variable: {var_name}")
-    
-    # ... (lógica para variable.ID, variable[expr], variable^, etc. que ya tenías) ...
-    elif len(p) > 2: 
-        base_var_type_node = p[1] 
+
+    elif len(p) > 2:
+        base_var_type_node = p[1]
         if base_var_type_node and base_var_type_node[0] == "ERROR_TYPE":
             p[0] = base_var_type_node
             return
 
         if p.slice[2].type == 'DOT':
-            # ... tu lógica para DOT ...
+
             record_var_type = base_var_type_node
             field_name = p[3]
             lineno_field = p.lineno(3)
@@ -2104,9 +2130,8 @@ def p_variable(p):
                     f"Left side of '.' operator must be a record or pointer to record, got {record_var_type}.", p.lineno(1))
                 p[0] = ("ERROR_TYPE", "Not a record for DOT access")
 
-
         elif p.slice[2].type == 'LBRACKET':
-            # ... tu lógica para LBRACKET ...
+
             array_var_type = base_var_type_node
             index_expr_types_list = p[3]
             lineno_bracket = p.lineno(2)
@@ -2148,7 +2173,7 @@ def p_variable(p):
                 p[0] = ("ERROR_TYPE", "Not an array/string for []")
 
         elif p.slice[-1].type == 'CARET':
-            # ... tu lógica para CARET ...
+
             ptr_var_type = base_var_type_node
             lineno_caret = p.lineno(len(p)-1)
 
@@ -2166,7 +2191,7 @@ def p_variable(p):
                     f"Cannot dereference non-pointer/non-file type {ptr_var_type} with '^'.", lineno_caret)
                 p[0] = ("ERROR_TYPE", "Not a pointer/file for ^")
     elif len(p) == 5 and p.slice[1].type == 'LPAREN' and p.slice[3].type == 'RPAREN' and p.slice[4].type == 'CARET':
-        # ... tu lógica para (variable)^ ...
+
         ptr_var_type_from_paren = p[2]
         lineno_caret = p.lineno(4)
         if not ptr_var_type_from_paren or ptr_var_type_from_paren[0] == "ERROR_TYPE":
@@ -2186,14 +2211,10 @@ def p_variable(p):
                 f"Cannot dereference non-pointer/non-file type {ptr_var_type_from_paren} (from parentheses) with '^'.", lineno_caret)
             p[0] = ("ERROR_TYPE", "Not a pointer/file for ^ from parens")
     else:
-        # Este else es para la condición if len(p) == 2 and p.slice[1].type == 'ID':
-        # Debería haber un else para if len(p) > 2
-        # O simplemente no hacer nada y dejar que p[0] no se asigne si no coincide con ninguna estructura conocida.
-        # Si llegas aquí, es probable que sea un error de sintaxis que PLY debería capturar si la gramática es exhaustiva.
-        # print(f"DEBUG_PARSER: p_variable - Estructura no manejada, len(p)={len(p)}")
+
         pass
 
-    
+
 def p_function_call(p):
     """function_call : ID LPAREN expression_list RPAREN
     | ID LPAREN RPAREN

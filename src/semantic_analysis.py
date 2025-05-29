@@ -3,23 +3,24 @@ from src.tokens import tokens
 import tkinter as tk
 from tkinter import ttk
 
-initialized_variables = set()
 
 symbol_table_stack = [{}]
 
-def mark_as_initialized(var_name, lineno=None):
-    if isinstance(var_name, str):
-        initialized_variables.add(var_name.lower())
-    else:
-        print_semantic_error(
-            f"Internal error: expected variable name as string in mark_as_initialized, got {type(var_name)}.",
-            lineno or 0
-        )
 
-def is_initialized(var_name):
-    if isinstance(var_name, str):
-        return var_name.lower() in initialized_variables
+def mark_as_initialized(name, lineno):
+    name_lower = name.lower()
+    for scope in reversed(symbol_table_stack):
+        if name_lower in scope:
+            entry = scope[name_lower]
+            if entry['kind'] == 'variable' or \
+               (entry['kind'] == 'parameter' and entry.get('value', {}).get('mode') == 'var'):
+                entry['initialized'] = True
+                return True
+            return False
+    print_semantic_error(
+        f"Internal: Symbol '{name}' not found to mark as initialized.", lineno)
     return False
+
 
 current_scope_level = 0
 semantic_errors = []
@@ -906,6 +907,7 @@ def get_result_type(operator, type1_desc, type2_desc=None, lineno=0):
         f"Op ({op}) type resolution failed for {type1_desc}, {type2_desc}",
     )
 
+
 def mark_as_initialized(name, lineno):
     name_lower = name.lower()
     for scope in reversed(symbol_table_stack):
@@ -924,25 +926,25 @@ def mark_as_initialized(name, lineno):
 
 
 def print_symbol_table():
-    # Crear ventana
+
     ventana = tk.Tk()
     ventana.title("Tabla de Símbolos")
 
-    # Recolectar todos los campos posibles (columnas)
-    column_names = set(["id", "scope"])  # Siempre queremos mostrar id y scope
+    column_names = set(["id", "scope"])
     rows = []
 
     for i, scope in enumerate(symbol_table_stack):
         scope_name = scope.get("__scope_name__", f"Scope {i}")
         for symbol_id, attributes in scope.items():
             if symbol_id.startswith("__"):
-                continue  # Saltar metadatos
+                continue
             row = {"id": symbol_id, "scope": scope_name}
             if isinstance(attributes, dict):
                 row.update(attributes)
                 column_names.update(attributes.keys())
             rows.append(row)
-    column_names = ["id", "scope"] + sorted(c for c in column_names if c not in ("id", "scope"))
+    column_names = ["id", "scope"] + \
+        sorted(c for c in column_names if c not in ("id", "scope"))
     tree = ttk.Treeview(ventana, columns=column_names, show="headings")
     for col in column_names:
         tree.heading(col, text=col)
@@ -951,7 +953,8 @@ def print_symbol_table():
         values = [row.get(col, "") for col in column_names]
         tree.insert("", "end", values=values)
     scrollbar_y = ttk.Scrollbar(ventana, orient="vertical", command=tree.yview)
-    scrollbar_x = ttk.Scrollbar(ventana, orient="horizontal", command=tree.xview)
+    scrollbar_x = ttk.Scrollbar(
+        ventana, orient="horizontal", command=tree.xview)
     tree.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
     tree.grid(row=0, column=0, sticky="nsew")
     scrollbar_y.grid(row=0, column=1, sticky="ns")
