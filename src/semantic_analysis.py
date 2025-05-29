@@ -1,5 +1,7 @@
 import ply.yacc as yacc
 from src.tokens import tokens
+import tkinter as tk
+from tkinter import ttk
 
 initialized_variables = set()
 
@@ -920,12 +922,40 @@ def mark_as_initialized(name, lineno):
         f"Internal: Symbol '{name}' not found to mark as initialized.", lineno)
     return False
 
+
 def print_symbol_table():
-    print("=== TABLA DE SÍMBOLOS ===")
+    # Crear ventana
+    ventana = tk.Tk()
+    ventana.title("Tabla de Símbolos")
+
+    # Recolectar todos los campos posibles (columnas)
+    column_names = set(["id", "scope"])  # Siempre queremos mostrar id y scope
+    rows = []
+
     for i, scope in enumerate(symbol_table_stack):
         scope_name = scope.get("__scope_name__", f"Scope {i}")
-        print(f"\nScope {i} - {scope_name}")
-        for key, value in scope.items():
-            if key.startswith("__"):
-                continue  # Saltar metadatos del scope
-            print(f"  {key} : {value}")
+        for symbol_id, attributes in scope.items():
+            if symbol_id.startswith("__"):
+                continue  # Saltar metadatos
+            row = {"id": symbol_id, "scope": scope_name}
+            if isinstance(attributes, dict):
+                row.update(attributes)
+                column_names.update(attributes.keys())
+            rows.append(row)
+    column_names = ["id", "scope"] + sorted(c for c in column_names if c not in ("id", "scope"))
+    tree = ttk.Treeview(ventana, columns=column_names, show="headings")
+    for col in column_names:
+        tree.heading(col, text=col)
+        tree.column(col, anchor="center", width=100)
+    for row in rows:
+        values = [row.get(col, "") for col in column_names]
+        tree.insert("", "end", values=values)
+    scrollbar_y = ttk.Scrollbar(ventana, orient="vertical", command=tree.yview)
+    scrollbar_x = ttk.Scrollbar(ventana, orient="horizontal", command=tree.xview)
+    tree.configure(yscroll=scrollbar_y.set, xscroll=scrollbar_x.set)
+    tree.grid(row=0, column=0, sticky="nsew")
+    scrollbar_y.grid(row=0, column=1, sticky="ns")
+    scrollbar_x.grid(row=1, column=0, sticky="ew")
+    ventana.grid_rowconfigure(0, weight=1)
+    ventana.grid_columnconfigure(0, weight=1)
+    ventana.mainloop()

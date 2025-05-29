@@ -54,7 +54,7 @@ def main() -> None:
     if len(sys.argv) > 1:
         fin = sys.argv[1]
     else:
-        fin = "test/test_e2.pas"
+        fin = "test/test_c2.pas"
 
     try:
         with open(fin, "r", encoding="utf-8") as f:
@@ -75,7 +75,7 @@ def main() -> None:
 
         if lex_success and parse_success:
             print("Compilation successful! No errors detected.")
-            print_symbol_table()  # ✅ Llamada colocada aquí
+            print_symbol_table() 
         else:
             print("Compilation failed! Errors detected.")
     except FileNotFoundError:
