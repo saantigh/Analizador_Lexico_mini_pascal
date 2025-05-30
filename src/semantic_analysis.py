@@ -273,7 +273,6 @@ def add_symbol(
             if found_level is not None:
                 scope_level_of_target = found_level
         except Exception:
-
             pass
 
     if name_lower in scope_to_interact_with:
@@ -287,6 +286,7 @@ def add_symbol(
                 )
                 return False
             else:
+                # Completando una declaración FORWARD
                 if existing_entry["kind"] != kind:
                     print_semantic_error(
                         f"Cannot change kind of '{name}' from '{existing_entry['kind']}' (FORWARD) to '{kind}' at line {lineno}.",
@@ -305,34 +305,50 @@ def add_symbol(
                         return False
 
                     if existing_entry["kind"] == "function":
+                        # Asumiendo que type_desc para función es ('FUNCTION_TYPE', params, return_type)
+                        # y que existing_entry['type'] tiene la misma estructura.
                         expected_return_type = (
                             existing_entry["type"][2]
                             if existing_entry["type"] and len(existing_entry["type"]) > 2
                             else None
                         )
+                        # Y que el type_desc que se pasa a add_symbol para una función también tiene esta estructura
                         current_return_type = (
-                            type_desc[2] if type_desc and len(
-                                type_desc) > 2 else None
+                            type_desc[2] if type_desc and len(type_desc) > 2 else None
                         )
-                        if not are_types_compatible(expected_return_type, current_return_type):
+                        if not are_types_compatible(expected_return_type, current_return_type): # Aquí puede que necesites una comprobación de identidad más estricta.
                             print_semantic_error(
                                 f"Return type mismatch for function '{name}' definition at line {lineno}. Expected '{expected_return_type}', got '{current_return_type}'.",
                                 lineno,
                             )
                             return False
-
+                # Actualizar la entrada forward
                 existing_entry["defined"] = True
                 existing_entry["is_forward"] = False
-
                 existing_entry["type"] = type_desc
-                existing_entry["params"] = params if params else existing_entry.get("params", [
-                ])
+                existing_entry["params"] = params if params else existing_entry.get("params", [])
                 existing_entry["lineno_defined"] = lineno
+                if kind == 'constant' and value is not None: # Si es una constante FORWARD (raro, pero por si acaso)
+                    existing_entry["value"] = value
                 return existing_entry
+        # *** INICIO DE LA MODIFICACIÓN PARA CONSTANTES ***
+        elif existing_entry["kind"] == "constant" and kind == "constant":
+            # Permite la redefinición de constantes en el mismo scope, actualizando el valor.
+            # En Pascal, esto es una práctica común para "actualizar" una constante.
+            print(f"DEBUG_SEM: Updating constant '{name}' from value {existing_entry['value']} to {value} at line {lineno}.")
+            existing_entry["value"] = value
+            existing_entry["type"] = type_desc # El tipo debería ser consistentemente inferido/declarado
+            existing_entry["lineno"] = lineno # Actualiza a la línea de la última definición
+            existing_entry["lineno_defined"] = lineno # Actualiza la línea donde fue "completamente" definida
+            # 'initialized' ya es True para constantes, no es necesario tocarla.
+            return existing_entry
+        # *** FIN DE LA MODIFICACIÓN PARA CONSTANTES ***
         else:
+            # Casos existentes para no redefinir (excepto variables de retorno)
             if (existing_entry["kind"] == "return_variable" and kind == "return_variable" and
                     existing_entry["scope_level"] == scope_level_of_target):
-
+                # Esto permite que el nombre de la función se "añada" como variable de retorno
+                # incluso si ya existe (lo cual debería suceder)
                 pass
             else:
                 print_semantic_error(
@@ -341,6 +357,7 @@ def add_symbol(
                 )
                 return False
 
+    # Si el símbolo no existe en el scope actual, se crea uno nuevo
     new_entry = {
         "id": name,
         "kind": kind,
@@ -361,16 +378,12 @@ def add_symbol(
     elif kind == 'parameter':
         param_mode = value.get('mode', 'value') if isinstance(
             value, dict) else 'value'
-
         new_entry['initialized'] = (param_mode != 'var')
     elif kind == 'return_variable':
-
         new_entry['initialized'] = False
-    elif kind == 'constant' or kind == 'enum_literal':
-
+    elif kind == 'constant' or kind == 'enum_literal': # Constantes y enum_literals se consideran inicializadas por definición
         new_entry['initialized'] = True
-    else:
-
+    else: # Otros tipos (procedimientos, funciones, tipos definidos) se consideran 'inicializados' en el sentido de que están definidos
         new_entry['initialized'] = True
 
     scope_to_interact_with[name_lower] = new_entry
